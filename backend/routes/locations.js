@@ -42,6 +42,15 @@ router.get('/:id/public', (req, res) => {
     }
 });
 
+function isValidHttpUrl(string) {
+    try {
+        const url = new URL(string);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
+}
+
 // All routes below require auth
 router.use(auth);
 
@@ -51,6 +60,14 @@ router.post('/', (req, res) => {
         if (!name || !google_review_link) {
             return res.status(400).json({ error: 'Name and Google Review Link are required' });
         }
+
+        const trimmedLink = String(google_review_link).trim();
+        if (!isValidHttpUrl(trimmedLink)) {
+            return res.status(400).json({ error: 'Google Review Link must be a valid HTTP or HTTPS URL' });
+        }
+
+        const cleanName = String(name).trim().slice(0, 150);
+        const cleanAddress = address ? String(address).trim().slice(0, 250) : '';
         
         const locationId = uuidv4();
         const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
@@ -61,7 +78,7 @@ router.post('/', (req, res) => {
         getDB().prepare(`
             INSERT INTO locations (id, business_id, name, address, google_review_link, qr_code_url)
             VALUES (?, ?, ?, ?, ?, ?)
-        `).run(locationId, req.user.business_id, name, address, google_review_link, qrCodeUrl);
+        `).run(locationId, req.user.business_id, cleanName, cleanAddress, trimmedLink, qrCodeUrl);
         
         res.status(201).json({ id: locationId, qr_code_url: qrCodeUrl });
     } catch (error) {
@@ -91,6 +108,18 @@ router.get('/:id', (req, res) => {
 router.put('/:id', (req, res) => {
     try {
         const { name, address, google_review_link } = req.body;
+        
+        let trimmedLink = undefined;
+        if (google_review_link !== undefined) {
+            trimmedLink = String(google_review_link).trim();
+            if (!isValidHttpUrl(trimmedLink)) {
+                return res.status(400).json({ error: 'Google Review Link must be a valid HTTP or HTTPS URL' });
+            }
+        }
+
+        const cleanName = name ? String(name).trim().slice(0, 150) : undefined;
+        const cleanAddress = address ? String(address).trim().slice(0, 250) : undefined;
+
         const result = getDB().prepare(`
             UPDATE locations 
             SET name = COALESCE(?, name),
@@ -98,7 +127,7 @@ router.put('/:id', (req, res) => {
                 google_review_link = COALESCE(?, google_review_link),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND business_id = ?
-        `).run(name, address, google_review_link, req.params.id, req.user.business_id);
+        `).run(cleanName, cleanAddress, trimmedLink, req.params.id, req.user.business_id);
         
         if (result.changes === 0) return res.status(404).json({ error: 'Location not found' });
         res.json({ success: true });

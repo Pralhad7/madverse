@@ -82,7 +82,12 @@ export default function CustomerReview() {
   const handleGoogleRedirect = (eventName) => {
     logEvent(eventName);
     if (businessInfo?.googleReviewLink) {
-      window.open(businessInfo.googleReviewLink, '_blank', 'noopener,noreferrer');
+      const url = String(businessInfo.googleReviewLink).trim();
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        console.error('Refused to open invalid or unsafe URL protocol');
+      }
       if (eventName === 'google_click') {
         setStep(4); // Move to thank you step
       }

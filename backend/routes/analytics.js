@@ -10,6 +10,19 @@ const limiter = rateLimit({
     max: 100 
 });
 
+const ALLOWED_EVENTS = new Set([
+    'qr_scanned',
+    'page_viewed',
+    'rating_selected',
+    'draft_generated',
+    'copy_clicked',
+    'google_redirect_clicked',
+    'direct_google_fallback_clicked',
+    'manager_feedback_submitted',
+    'prompt_toggled',
+    'voice_dictation_used'
+]);
+
 router.post('/event', limiter, (req, res) => {
     try {
         const { locationId, eventType, language = 'en' } = req.body;
@@ -18,8 +31,14 @@ router.post('/event', limiter, (req, res) => {
             return res.status(400).json({ error: 'Location ID and Event Type are required' });
         }
 
+        if (!ALLOWED_EVENTS.has(eventType)) {
+            return res.status(400).json({ error: 'Invalid event type' });
+        }
+
+        const safeLanguage = typeof language === 'string' && /^[a-zA-Z\-]{2,10}$/.test(language) ? language : 'en';
+
         getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
-          .run(locationId, eventType, language);
+          .run(locationId, eventType, safeLanguage);
           
         res.status(201).json({ success: true });
     } catch (error) {
