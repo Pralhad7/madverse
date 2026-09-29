@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  madverse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: madverse-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - JWT_SECRET=${JWT_SECRET:-madverse-secret-production-change-me}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - BASE_URL=${BASE_URL:-http://localhost:3001}
+    volumes:
+      # Persist SQLite database file across container recreation
+      - madverse_data:/app/backend/db
+
+volumes:
+  madverse_data:
+    name: madverse_sqlite_data

@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Cinzel', Georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --brand-primary: #0D9488; /* Peacock teal */
+  --brand-espresso: #2B1810; /* Deep chocolate espresso */
+  --brand-cream: #FAF6F0; /* Luxury warm linen */
+  --brand-gold: #D97706; /* Iridescent warm gold */
+  --brand-sapphire: #0284C7; /* Peacock blue */
+  --brand-gradient: linear-gradient(135deg, #0D9488 0%, #0284C7 50%, #D97706 100%);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #FAF6F0;
+  color: #2B1810;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5C2B2;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9C7A65;
+}
+
+/* Glassmorphism helpers with warm luxury borders */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(229, 218, 206, 0.85);
+}
+
+.glass-panel-dark {
+  background: rgba(28, 15, 10, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(74, 46, 32, 0.7);
+}
+
+.glass-luxury {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 246, 240, 0.9) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  box-shadow: 0 10px 30px -10px rgba(43, 24, 16, 0.08);
+}
+
+/* MadVerse Glow effects */
+.glow-teal {
+  box-shadow: 0 0 40px -8px rgba(13, 148, 136, 0.35);
+}
+
+.glow-gold {
+  box-shadow: 0 0 35px -8px rgba(217, 119, 6, 0.35);
+}
+
+.glow-espresso {
+  box-shadow: 0 20px 45px -15px rgba(43, 24, 16, 0.2);
+}
+
+.glow-subtle {
+  box-shadow: 0 10px 25px -5px rgba(43, 24, 16, 0.04), 0 8px 10px -6px rgba(43, 24, 16, 0.02);
+}
+
+/* Animated gradient text matching peacock feather & gold */
+.text-gradient {
+  background: linear-gradient(135deg, #2B1810 0%, #4A2E20 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-madverse {
+  background: linear-gradient(135deg, #0D9488 0%, #0284C7 45%, #D97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Micro-interaction bounces */
+.active-press:active {
+  transform: scale(0.97);
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 0.3; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
