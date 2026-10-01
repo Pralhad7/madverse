@@ -11,7 +11,8 @@ import {
   ExternalLink, Sparkles, ShieldCheck, CheckCircle2, RefreshCw, 
   Building2, Palette, Globe, Sliders, AlertTriangle,
   MessageSquare, Copy, Check, HeartHandshake, Phone, Mail, 
-  ArrowRight, Lightbulb, TrendingUp, ThumbsUp, Send, CheckCircle, Shield
+  ArrowRight, Lightbulb, TrendingUp, ThumbsUp, Send, CheckCircle, Shield,
+  Download, Image, Users, Award, Code, MessageCircle
 } from 'lucide-react';
 
 // ─────────────────────────── Overview Tab ───────────────────────────
@@ -694,11 +695,34 @@ const AIReviewHub = () => {
   const locationName = primaryLoc.city || 'Mumbai';
   const googleReviewLink = primaryLoc.google_review_link || 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai';
 
-  useEffect(() => {
-    if (activeTab === 'inbox') {
-      loadFeedbacks();
-    }
-  }, [activeTab]);
+  // WhatsApp Inviter State
+  const [waName, setWaName] = useState('');
+  const [waPhone, setWaPhone] = useState('');
+  const [waService, setWaService] = useState('Bali Family Holiday');
+  const [waStaff, setWaStaff] = useState('');
+  const [waTemplate, setWaTemplate] = useState('warm');
+  const [waSending, setWaSending] = useState(false);
+  const [waResult, setWaResult] = useState(null);
+  const [waInvitesList, setWaInvitesList] = useState([]);
+  const [copiedWaMessage, setCopiedWaMessage] = useState(false);
+
+  // Social Post Studio State
+  const [socialQuote, setSocialQuote] = useState('Had an amazing 6-day family holiday in Bali organized by Trident Net Holidays. Mr. Pawar took care of flight tickets, luxury villa, and local sightseeing smoothly!');
+  const [socialAuthor, setSocialAuthor] = useState('Vikram Malhotra');
+  const [socialAspectRatio, setSocialAspectRatio] = useState('1:1'); // '1:1' | '9:16'
+  const [socialTheme, setSocialTheme] = useState('teal'); // 'teal' | 'gold' | 'travel' | 'dark'
+  const canvasRef = React.useRef(null);
+
+  // Website Widget State
+  const [widgetPos, setWidgetPos] = useState('bottom-right');
+  const [copiedWidgetSnippet, setCopiedWidgetSnippet] = useState(false);
+
+  // Staff State
+  const [staffList, setStaffList] = useState([]);
+  const [staffLeaderboard, setStaffLeaderboard] = useState([]);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffRole, setNewStaffRole] = useState('Tour Specialist');
+  const [addingStaff, setAddingStaff] = useState(false);
 
   const loadFeedbacks = () => {
     setLoadingFeedbacks(true);
@@ -709,6 +733,249 @@ const AIReviewHub = () => {
         setLoadingFeedbacks(false);
       })
       .catch(() => setLoadingFeedbacks(false));
+  };
+
+  const loadWhatsAppInvites = () => {
+    apiFetch('/api/whatsapp/invites')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setWaInvitesList(data);
+      })
+      .catch(() => {});
+  };
+
+  const loadStaff = () => {
+    apiFetch('/api/staff')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setStaffList(data);
+      })
+      .catch(() => {});
+
+    apiFetch('/api/staff/leaderboard')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setStaffLeaderboard(data);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    if (activeTab === 'inbox') {
+      loadFeedbacks();
+    } else if (activeTab === 'whatsapp') {
+      loadWhatsAppInvites();
+      loadStaff();
+    } else if (activeTab === 'staff') {
+      loadStaff();
+    } else if (activeTab === 'social') {
+      setTimeout(drawSocialCard, 60);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'social') {
+      drawSocialCard();
+    }
+  }, [socialQuote, socialAuthor, socialAspectRatio, socialTheme, activeTab]);
+
+  const handleSendWhatsAppInvite = async (e) => {
+    e.preventDefault();
+    if (!waPhone.trim()) return;
+    setWaSending(true);
+    try {
+      const res = await apiFetch('/api/whatsapp/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: primaryLoc.id,
+          customerName: waName,
+          customerPhone: waPhone,
+          serviceName: waService,
+          staffName: waStaff,
+          templateKey: waTemplate
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWaResult(data);
+        loadWhatsAppInvites();
+      }
+    } catch (err) {
+      console.error('WhatsApp invite error:', err);
+    } finally {
+      setWaSending(false);
+    }
+  };
+
+  const handleAddStaff = async (e) => {
+    e.preventDefault();
+    if (!newStaffName.trim()) return;
+    setAddingStaff(true);
+    try {
+      await apiFetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newStaffName, role: newStaffRole })
+      });
+      setNewStaffName('');
+      loadStaff();
+    } catch (err) {
+      console.error('Add staff error:', err);
+    } finally {
+      setAddingStaff(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id) => {
+    try {
+      await apiFetch(`/api/staff/${id}`, { method: 'DELETE' });
+      loadStaff();
+    } catch (err) {
+      console.error('Delete staff error:', err);
+    }
+  };
+
+  const drawSocialCard = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const isSquare = socialAspectRatio === '1:1';
+    const width = 1080;
+    const height = isSquare ? 1080 : 1920;
+    canvas.width = width;
+    canvas.height = height;
+
+    const themes = {
+      teal: ['#042F2E', '#0D9488', '#115E59'],
+      gold: ['#451A03', '#B45309', '#D97706'],
+      travel: ['#831843', '#BE185D', '#FB7185'],
+      dark: ['#020617', '#0F172A', '#1E293B']
+    };
+    const colors = themes[socialTheme] || themes.teal;
+
+    // Background Gradient
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, colors[0]);
+    grad.addColorStop(0.5, colors[2]);
+    grad.addColorStop(1, colors[1]);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+
+    // Decorative mesh
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.beginPath();
+    ctx.arc(width * 0.85, height * 0.15, 350, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(width * 0.1, height * 0.9, 450, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Card dimensions
+    const cardPadding = 80;
+    const cardX = cardPadding;
+    const cardWidth = width - (cardPadding * 2);
+    const cardHeight = isSquare ? 840 : 1240;
+    const cardY = isSquare ? 120 : 340;
+
+    // Card body
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.09)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(cardX, cardY, cardWidth, cardHeight, 48);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // Badge
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    const badgeW = 340;
+    const badgeH = 54;
+    const badgeX = (width - badgeW) / 2;
+    const badgeY = cardY + 70;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 27);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('VERIFIED GOOGLE REVIEW', width / 2, badgeY + 35);
+    ctx.restore();
+
+    // Stars
+    ctx.save();
+    ctx.fillStyle = '#FBBF24';
+    ctx.font = 'bold 56px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('★  ★  ★  ★  ★', width / 2, badgeY + 140);
+    ctx.restore();
+
+    // Quote text
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '500 36px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    const textMaxWidth = cardWidth - 140;
+    const words = `"${socialQuote}"`.split(' ');
+    let line = '';
+    const lines = [];
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > textMaxWidth && n > 0) {
+        lines.push(line.trim());
+        line = words[n] + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line.trim());
+
+    const quoteStartY = badgeY + 230;
+    const lineHeight = 56;
+    for (let i = 0; i < Math.min(lines.length, 9); i++) {
+      ctx.fillText(lines[i], width / 2, quoteStartY + (i * lineHeight));
+    }
+    ctx.restore();
+
+    // Author
+    ctx.save();
+    ctx.fillStyle = '#FDE68A';
+    ctx.font = 'bold 32px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    const authorY = quoteStartY + (Math.min(lines.length, 9) * lineHeight) + 60;
+    ctx.fillText(`— ${socialAuthor || 'Happy Customer'}`, width / 2, Math.min(authorY, cardY + cardHeight - 160));
+    ctx.restore();
+
+    // Footer business branding
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(businessName, width / 2, cardY + cardHeight - 80);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '500 24px system-ui, sans-serif';
+    ctx.fillText('Andheri West, Mumbai · Travel & Tour Specialists', width / 2, cardY + cardHeight - 40);
+    ctx.restore();
+  };
+
+  const handleDownloadSocialCard = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const imageUri = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `trident-net-holidays-google-review-${socialAspectRatio === '1:1' ? 'square' : 'story'}.png`;
+    link.href = imageUri;
+    link.click();
   };
 
   const handleGenerateReplies = async (customText, customRating) => {
@@ -814,29 +1081,77 @@ const AIReviewHub = () => {
       </div>
 
       {/* Hub Navigation Tabs */}
-      <div className="flex border-b border-amber-900/10 gap-2 sm:gap-4 overflow-x-auto pb-1">
+      <div className="flex border-b border-amber-900/10 gap-1.5 sm:gap-2.5 overflow-x-auto pb-1 text-xs sm:text-sm">
         <button
           onClick={() => setActiveTab('reply')}
-          className={`flex items-center gap-2 py-3 px-4 font-bold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 ${
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 shrink-0 ${
             activeTab === 'reply'
               ? 'border-teal-700 text-teal-800 bg-teal-50/60'
               : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
           }`}
         >
-          <Sparkles size={16} className={activeTab === 'reply' ? 'text-teal-700' : ''} />
+          <Sparkles size={15} className={activeTab === 'reply' ? 'text-teal-700' : ''} />
           <span>AI Review Responder</span>
         </button>
 
         <button
+          onClick={() => setActiveTab('whatsapp')}
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 shrink-0 ${
+            activeTab === 'whatsapp'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <MessageCircle size={15} className={activeTab === 'whatsapp' ? 'text-teal-700' : ''} />
+          <span>WhatsApp Inviter</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('social')}
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 shrink-0 ${
+            activeTab === 'social'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <Image size={15} className={activeTab === 'social' ? 'text-teal-700' : ''} />
+          <span>Social Post Studio</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('widget')}
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 shrink-0 ${
+            activeTab === 'widget'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <Code size={15} className={activeTab === 'widget' ? 'text-teal-700' : ''} />
+          <span>Website Widget</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('staff')}
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 shrink-0 ${
+            activeTab === 'staff'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <Users size={15} className={activeTab === 'staff' ? 'text-teal-700' : ''} />
+          <span>Staff & Leaderboard</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('inbox')}
-          className={`flex items-center gap-2 py-3 px-4 font-bold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 relative ${
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 relative shrink-0 ${
             activeTab === 'inbox'
               ? 'border-teal-700 text-teal-800 bg-teal-50/60'
               : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
           }`}
         >
-          <HeartHandshake size={16} className={activeTab === 'inbox' ? 'text-teal-700' : ''} />
-          <span>Private Resolution Inbox</span>
+          <HeartHandshake size={15} className={activeTab === 'inbox' ? 'text-teal-700' : ''} />
+          <span>Private Inbox</span>
           {pendingFeedbacksCount > 0 && (
             <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black">
               {pendingFeedbacksCount}
@@ -846,14 +1161,14 @@ const AIReviewHub = () => {
 
         <button
           onClick={() => setActiveTab('playbook')}
-          className={`flex items-center gap-2 py-3 px-4 font-bold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 ${
+          className={`flex items-center gap-1.5 py-3 px-3.5 font-bold rounded-t-xl transition-all border-b-2 shrink-0 ${
             activeTab === 'playbook'
               ? 'border-teal-700 text-teal-800 bg-teal-50/60'
               : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
           }`}
         >
-          <TrendingUp size={16} className={activeTab === 'playbook' ? 'text-teal-700' : ''} />
-          <span>Local SEO 3-Pack Playbook</span>
+          <TrendingUp size={15} className={activeTab === 'playbook' ? 'text-teal-700' : ''} />
+          <span>SEO Playbook</span>
         </button>
       </div>
 
@@ -1056,6 +1371,580 @@ const AIReviewHub = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ─────────────────────────── TAB: WHATSAPP REVIEW INVITER ─────────────────────────── */}
+      {activeTab === 'whatsapp' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-900/10 shadow-sm space-y-6">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900">
+                Highest Conversion Channel (98% Open Rate)
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-madverse-espresso mt-1.5">
+                Send 1-Click WhatsApp Review Invitation
+              </h3>
+              <p className="text-xs text-madverse-espresso-500 mt-1">
+                Enter the customer's phone number and service. We'll generate a personalized, warm WhatsApp message with their unique review link.
+              </p>
+            </div>
+
+            <form onSubmit={handleSendWhatsAppInvite} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Customer Phone Number *
+                  </label>
+                  <div className="flex items-center">
+                    <span className="px-3 py-2.5 bg-stone-100 border border-r-0 border-stone-200 rounded-l-xl text-xs font-bold text-stone-600">
+                      🇮🇳 +91
+                    </span>
+                    <input
+                      type="tel"
+                      required
+                      value={waPhone}
+                      onChange={(e) => setWaPhone(e.target.value)}
+                      placeholder="98200 12345"
+                      className="w-full px-3.5 py-2.5 rounded-r-xl border border-stone-200 text-xs sm:text-sm focus:border-teal-600 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Customer Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={waName}
+                    onChange={(e) => setWaName(e.target.value)}
+                    placeholder="E.g., Rahul Sharma"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:border-teal-600 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Service / Destination Provided
+                  </label>
+                  <input
+                    type="text"
+                    value={waService}
+                    onChange={(e) => setWaService(e.target.value)}
+                    placeholder="E.g., Bali Family Holiday, Dubai Visa, Flight Booking"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:border-teal-600 outline-none"
+                  />
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {['🌴 Bali Tour', '✈️ Dubai Visa', '🎟️ Flight Booking', '🏔️ Manali Package'].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setWaService(chip)}
+                        className="px-2 py-0.5 rounded bg-stone-100 hover:bg-teal-50 text-[10px] font-semibold text-stone-600"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Assisting Specialist (Staff Attribution)
+                  </label>
+                  <select
+                    value={waStaff}
+                    onChange={(e) => setWaStaff(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:border-teal-600 outline-none bg-white"
+                  >
+                    <option value="">General / Entire Team</option>
+                    {staffList.map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} ({s.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Message Style & Template
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { key: 'warm', label: '🌟 Warm & Personal' },
+                    { key: 'post_trip', label: '✈️ Post-Trip Check-in' },
+                    { key: 'visa', label: '📄 Visa / Ticket Done' },
+                    { key: 'concise', label: '⚡ Short & Direct' }
+                  ].map((tpl) => (
+                    <button
+                      key={tpl.key}
+                      type="button"
+                      onClick={() => setWaTemplate(tpl.key)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition text-center ${
+                        waTemplate === tpl.key
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs'
+                          : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
+                      }`}
+                    >
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between">
+                <span className="text-[11px] text-stone-400">
+                  Pre-populates WhatsApp text · Auto-welcomes guest on review link
+                </span>
+
+                <button
+                  type="submit"
+                  disabled={waSending || !waPhone.trim()}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-700/20 transition-all hover:scale-[1.01]"
+                >
+                  {waSending ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Creating Invite...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send size={15} />
+                      <span>Generate WhatsApp Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Generated Invite Actions */}
+            {waResult && (
+              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold text-xs">
+                    <CheckCircle2 size={16} className="text-emerald-600" />
+                    <span>WhatsApp Invitation Ready for {waResult.customerName || waResult.cleanPhone}</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                    Ready to Send
+                  </span>
+                </div>
+
+                <div className="bg-white rounded-xl p-3.5 border border-emerald-200/60 font-mono text-xs text-stone-700 whitespace-pre-wrap leading-relaxed">
+                  {waResult.message}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <a
+                    href={waResult.whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition"
+                  >
+                    <MessageCircle size={15} />
+                    <span>Open in WhatsApp</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(waResult.message);
+                      setCopiedWaMessage(true);
+                      setTimeout(() => setCopiedWaMessage(false), 2500);
+                    }}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 font-bold text-xs transition"
+                  >
+                    {copiedWaMessage ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                    <span>{copiedWaMessage ? 'Copied Message!' : 'Copy Text & Link'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Recent Invites History */}
+          {waInvitesList.length > 0 && (
+            <div className="bg-white rounded-3xl p-6 border border-amber-900/10 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black uppercase tracking-wider text-madverse-espresso-500">
+                  Recent WhatsApp Review Invites ({waInvitesList.length})
+                </h4>
+                <button onClick={loadWhatsAppInvites} className="text-xs font-bold text-teal-700 flex items-center gap-1">
+                  <RefreshCw size={12} /> Refresh
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-stone-100 text-stone-400 font-bold">
+                      <th className="pb-2">Customer</th>
+                      <th className="pb-2">Phone</th>
+                      <th className="pb-2">Service</th>
+                      <th className="pb-2">Staff</th>
+                      <th className="pb-2">Status</th>
+                      <th className="pb-2">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100 text-stone-700 font-medium">
+                    {waInvitesList.slice(0, 10).map((inv) => (
+                      <tr key={inv.id} className="hover:bg-stone-50/50">
+                        <td className="py-2.5 font-bold text-stone-900">{inv.customer_name || 'Guest'}</td>
+                        <td className="py-2.5 font-mono">{inv.customer_phone}</td>
+                        <td className="py-2.5">{inv.service_name || 'Tour'}</td>
+                        <td className="py-2.5 text-teal-800">{inv.staff_name || 'Team'}</td>
+                        <td className="py-2.5">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                            Sent
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-stone-400">{new Date(inv.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────── TAB: SOCIAL POST STUDIO ─────────────────────────── */}
+      {activeTab === 'social' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-900/10 shadow-sm space-y-6">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-900">
+                Instagram & WhatsApp Marketing
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-madverse-espresso mt-1.5">
+                Review-to-Social Graphic Generator
+              </h3>
+              <p className="text-xs text-madverse-espresso-500 mt-1">
+                Turn your 5-star customer reviews into stunning branded graphics for Instagram Feed, WhatsApp Status, and Facebook. Zero design skills required.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              {/* Controls */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Customer Review Quote
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={socialQuote}
+                    onChange={(e) => setSocialQuote(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:border-teal-600 outline-none leading-relaxed"
+                  />
+                  {/* Sample quotes */}
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {[
+                      { l: 'Bali Trip', q: 'Had an amazing 6-day family holiday in Bali organized by Trident Net Holidays. Everything was flawless!' },
+                      { l: 'Dubai Visa', q: 'Fastest Dubai visa and flight booking service in Andheri West! Highly recommend Trident Net Holidays.' },
+                      { l: 'Honeymoon', q: 'Memorable honeymoon trip to Maldives! The team handled luxury resort booking and seaplane transfers perfectly.' }
+                    ].map((s, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSocialQuote(s.q)}
+                        className="px-2 py-0.5 rounded bg-stone-100 hover:bg-teal-50 text-[10px] font-semibold text-stone-600"
+                      >
+                        Sample: {s.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Customer Name
+                    </label>
+                    <input
+                      type="text"
+                      value={socialAuthor}
+                      onChange={(e) => setSocialAuthor(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm focus:border-teal-600 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Post Dimensions
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSocialAspectRatio('1:1')}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${
+                          socialAspectRatio === '1:1'
+                            ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                            : 'bg-stone-50 text-stone-700 border-stone-200'
+                        }`}
+                      >
+                        Square (1:1 Feed)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSocialAspectRatio('9:16')}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition ${
+                          socialAspectRatio === '9:16'
+                            ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                            : 'bg-stone-50 text-stone-700 border-stone-200'
+                        }`}
+                      >
+                        Story (9:16 Status)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Visual Brand Theme
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { key: 'teal', label: '🌿 Royal Teal', bg: 'bg-[#0D9488]' },
+                      { key: 'gold', label: '👑 Gold Luxury', bg: 'bg-[#D97706]' },
+                      { key: 'travel', label: '🌺 Sunset Coral', bg: 'bg-[#BE185D]' },
+                      { key: 'dark', label: '🌑 Dark Obsidian', bg: 'bg-[#0F172A]' }
+                    ].map((th) => (
+                      <button
+                        key={th.key}
+                        type="button"
+                        onClick={() => setSocialTheme(th.key)}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition text-center flex items-center justify-center gap-1.5 ${
+                          socialTheme === th.key
+                            ? 'ring-2 ring-teal-700 border-teal-700 shadow-xs'
+                            : 'border-stone-200 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className={`w-3 h-3 rounded-full ${th.bg}`} />
+                        <span>{th.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadSocialCard}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-teal-700/20 transition-all hover:scale-[1.01]"
+                  >
+                    <Download size={16} />
+                    <span>Download High-Res Graphic (PNG)</span>
+                  </button>
+                  <p className="text-[11px] text-stone-400 text-center mt-1.5">
+                    100% Free · High-Resolution 1080px Canvas Export
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Canvas Preview */}
+              <div className="flex flex-col items-center justify-center bg-stone-100 rounded-3xl p-6 border border-stone-200">
+                <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider mb-3">
+                  Live Social Preview ({socialAspectRatio})
+                </span>
+                <div className="relative shadow-2xl rounded-2xl overflow-hidden max-w-full">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-auto max-h-[460px] object-contain rounded-2xl"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────── TAB: WEBSITE WIDGET ─────────────────────────── */}
+      {activeTab === 'widget' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-900/10 shadow-sm space-y-6">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-900">
+                1-Line Embed Code
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-madverse-espresso mt-1.5">
+                Embed Google Reviews on Your Website
+              </h3>
+              <p className="text-xs text-madverse-espresso-500 mt-1">
+                Display a floating Google Review badge on your travel agency website, WordPress, Wix, or Shopify store to build instant trust with visitors.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Badge Screen Position
+                </label>
+                <div className="flex items-center gap-3">
+                  {['bottom-right', 'bottom-left'].map((pos) => (
+                    <button
+                      key={pos}
+                      type="button"
+                      onClick={() => setWidgetPos(pos)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                        widgetPos === pos
+                          ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                          : 'bg-stone-50 text-stone-700 border-stone-200'
+                      }`}
+                    >
+                      {pos === 'bottom-right' ? '📍 Bottom Right' : '📍 Bottom Left'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Copy HTML Embed Snippet
+                </label>
+                <div className="bg-stone-900 text-teal-300 p-4 rounded-2xl font-mono text-xs overflow-x-auto leading-relaxed border border-stone-800 flex items-center justify-between gap-4">
+                  <code>{`<script src="https://madverse-l7jo.onrender.com/widget.js" data-location-id="${primaryLoc.id || 'ef9b1224-1b18-4137-825d-0693d8dcd72f'}" data-position="${widgetPos}"></script>`}</code>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`<script src="https://madverse-l7jo.onrender.com/widget.js" data-location-id="${primaryLoc.id || 'ef9b1224-1b18-4137-825d-0693d8dcd72f'}" data-position="${widgetPos}"></script>`);
+                      setCopiedWidgetSnippet(true);
+                      setTimeout(() => setCopiedWidgetSnippet(false), 2500);
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg bg-teal-800 hover:bg-teal-700 text-white font-bold text-xs shrink-0 flex items-center gap-1 transition"
+                  >
+                    {copiedWidgetSnippet ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copiedWidgetSnippet ? 'Copied!' : 'Copy Code'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Widget Simulator Preview */}
+              <div className="bg-stone-100 rounded-3xl p-6 border border-stone-200 space-y-3">
+                <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+                  Simulated Floating Badge Preview
+                </span>
+                <div className="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm relative min-h-[140px] flex items-end">
+                  <div className={`flex items-center gap-3 bg-white border border-stone-200 rounded-full shadow-lg p-2.5 px-4 cursor-pointer hover:shadow-xl transition ${widgetPos === 'bottom-left' ? 'mr-auto' : 'ml-auto'}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-extrabold text-xs text-stone-900">4.9</span>
+                        <span className="text-amber-500 text-xs">★★★★★</span>
+                        <span className="text-[10px] text-stone-400 font-semibold">(174 Reviews)</span>
+                      </div>
+                      <div className="text-[10px] text-teal-800 font-bold">{businessName} · Mumbai</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────── TAB: STAFF & LEADERBOARD ─────────────────────────── */}
+      {activeTab === 'staff' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-900/10 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900">
+                  Team Gamification & Attribution
+                </span>
+                <h3 className="text-base sm:text-lg font-black text-madverse-espresso mt-1.5">
+                  Staff Members & Review Leaderboard
+                </h3>
+                <p className="text-xs text-madverse-espresso-500 mt-1">
+                  Incentivize staff members to collect reviews. Customers can select who assisted them on the Express Reviewer screen.
+                </p>
+              </div>
+            </div>
+
+            {/* Add Staff Inline */}
+            <form onSubmit={handleAddStaff} className="bg-stone-50 rounded-2xl p-4 border border-stone-200 flex flex-col sm:flex-row gap-3 items-end">
+              <div className="flex-1 w-full">
+                <label className="block text-xs font-bold text-stone-700 mb-1">Staff Member Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="E.g., Rahul Verma"
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs bg-white focus:border-teal-600 outline-none"
+                />
+              </div>
+
+              <div className="flex-1 w-full">
+                <label className="block text-xs font-bold text-stone-700 mb-1">Role / Specialization</label>
+                <input
+                  type="text"
+                  placeholder="E.g., Flight & Visa Specialist"
+                  value={newStaffRole}
+                  onChange={(e) => setNewStaffRole(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-xs bg-white focus:border-teal-600 outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={addingStaff || !newStaffName.trim()}
+                className="w-full sm:w-auto px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white font-bold text-xs shadow-xs transition"
+              >
+                {addingStaff ? 'Adding...' : 'Add Team Member'}
+              </button>
+            </form>
+
+            {/* Leaderboard Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {staffLeaderboard.map((member) => (
+                <div key={member.id} className="bg-[#FAF6F0]/80 rounded-2xl p-5 border border-amber-900/10 space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800">
+                      {member.badge}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStaff(member.id)}
+                      className="text-stone-300 hover:text-red-500 text-xs font-bold transition"
+                      title="Remove staff member"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-sm text-stone-900">{member.name}</h4>
+                    <p className="text-[11px] text-stone-500">{member.role}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-amber-900/5 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-stone-400 block font-semibold">Invites Sent</span>
+                      <span className="font-extrabold text-teal-800 text-sm">{member.invitesSent || 0}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-stone-400 block font-semibold">Rating Score</span>
+                      <span className="font-extrabold text-amber-600 text-sm">5.0 ★</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

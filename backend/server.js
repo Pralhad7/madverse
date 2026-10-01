@@ -52,6 +52,10 @@ async function start() {
     app.use('/api/drafts', require('./routes/drafts'));
     app.use('/api/analytics', require('./routes/analytics'));
     app.use('/api/feedback', require('./routes/feedback'));
+    app.use('/api/whatsapp', require('./routes/whatsapp'));
+    app.use('/api/staff', require('./routes/staff'));
+    app.use('/api/widget', require('./routes/widget'));
+    app.get('/widget.js', (req, res) => res.redirect('/api/widget/embed.js'));
 
     // Serve static frontend bundle
     const possibleDistPaths = [

@@ -263,6 +263,23 @@ async function initDB() {
             );
             console.log('Seeded Trident Net Holidays location.');
         }
+
+        // Seed default staff members if empty
+        const staffCheck = db.prepare('SELECT COUNT(*) as count FROM staff_members').get();
+        if (staffCheck && staffCheck.count === 0) {
+            const biz = db.prepare("SELECT id FROM businesses LIMIT 1").get();
+            const bId = biz ? biz.id : '09bb176e-a2b0-422c-afc8-2a0c3495ecbf';
+            const defaultStaff = [
+                { id: 'staff-1', name: 'Pralhad Pawar', role: 'Founder & Head of Tours' },
+                { id: 'staff-2', name: 'Sneha Sharma', role: 'Visa & Flight Specialist' },
+                { id: 'staff-3', name: 'Amit Kulkarni', role: 'Custom Holiday Planner' }
+            ];
+            for (const s of defaultStaff) {
+                db.prepare('INSERT INTO staff_members (id, business_id, name, role, is_active) VALUES (?, ?, ?, ?, 1)')
+                  .run(s.id, bId, s.name, s.role);
+            }
+            console.log('Seeded default staff members.');
+        }
     } catch (e) {
         console.error('MadVerse seed error:', e.message);
     }

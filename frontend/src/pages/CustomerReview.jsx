@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import BrandHeader from '../components/BrandHeader';
 import StarSelector from '../components/StarSelector';
 import PromptChips from '../components/PromptChips';
@@ -9,12 +9,17 @@ import { speakText, stopSpeaking } from '../utils/speech';
 import { 
   ExternalLink, Copy, Check, Sparkles, RefreshCw, 
   RotateCw, CheckCircle2, HeartHandshake, Volume2, VolumeX, 
-  AlertCircle, ArrowLeft, Send, MessageSquare, ShieldCheck, Mail, Phone, User
+  AlertCircle, ArrowLeft, Send, MessageSquare, ShieldCheck, Mail, Phone, User,
+  Mic, MicOff, Languages, Award
 } from 'lucide-react';
 import { getReviewsForRating } from '../utils/reviewMessages';
 
 export default function CustomerReview() {
   const { locationId } = useParams();
+  const [searchParams] = useSearchParams();
+  const urlStaff = searchParams.get('staff') || '';
+  const urlCname = searchParams.get('cname') || '';
+
   const [businessInfo, setBusinessInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,34 +35,70 @@ export default function CustomerReview() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
+  // Multi-Language & Voice Dictation & Staff Attribution
+  const [selectedLang, setSelectedLang] = useState('en');
+  const [selectedStaff, setSelectedStaff] = useState(urlStaff);
+  const [staffList, setStaffList] = useState([]);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+
   // Private owner resolution state (for 1-3 stars)
   const [showPrivateModal, setShowPrivateModal] = useState(false);
-  const [privateName, setPrivateName] = useState('');
+  const [privateName, setPrivateName] = useState(urlCname || '');
   const [privateContact, setPrivateContact] = useState('');
   const [privateMessage, setPrivateMessage] = useState('');
   const [privateSending, setPrivateSending] = useState(false);
   const [privateSent, setPrivateSent] = useState(false);
 
-  // Helper to dynamically build review text with custom note and prompt chips
-  const synthesizeReview = (currentRating, promptsList, note, optionIdx = 0) => {
+  // Helper to dynamically build review text with custom note, language, and staff
+  const synthesizeReview = (currentRating, promptsList, note, optionIdx = 0, lang = selectedLang, staff = selectedStaff) => {
     const bName = businessInfo?.businessName || 'Trident Net Holidays';
-    const lName = businessInfo?.locationName || 'Trident Net Holidays';
+    const lName = businessInfo?.locationName || 'Mumbai';
     const safeRating = Math.max(1, Math.min(5, Number(currentRating) || 5));
-    const available = getReviewsForRating(safeRating, bName, lName);
-    const baseReview = available[optionIdx % available.length] || available[0];
-
     const promptNames = (businessInfo?.prompts || [])
       .filter(p => promptsList.includes(p.id))
       .map(p => p.text);
 
-    const hasCustom = (note && note.trim().length > 0) || promptNames.length > 0;
+    const notePart = note ? note.trim() : '';
+    const promptsPart = promptNames.length > 0 ? promptNames.join(', ') : '';
+    const staffPart = staff ? `Staff: ${staff}` : '';
+    const combined = [notePart, promptsPart, staffPart].filter(Boolean).join(' · ');
+
+    if (lang === 'hi') {
+      if (safeRating >= 4) {
+        return `${bName} (${lName}) के साथ हमारा अनुभव बेहद शानदार रहा। उनकी टीम ने हमारी यात्रा की हर व्यवस्था बहुत ही कुशलता और समय पर की${combined ? ' - विशेषकर ' + combined : ''}। स्टाफ का व्यवहार बहुत विनम्र और मददगार था। मुंबई में टूर और ट्रेवल के लिए इन्हें पूरे विश्वास के साथ 5 स्टार दूंगा!`;
+      } else if (safeRating === 3) {
+        return `${bName} के साथ हमारा अनुभव ठीक-ठाक रहा${combined ? ' (' + combined + ')' : ''}। सर्विस संतोषजनक थी लेकिन ग्राहक सहायता में थोड़ा और सुधार किया जा सकता है।`;
+      } else {
+        return `${bName} के साथ हमारा अनुभव निराशाजनक रहा${combined ? ' - ' + combined : ''}। समय पर सही जानकारी नहीं मिली। सुधार की आवश्यकता है।`;
+      }
+    }
+
+    if (lang === 'mr') {
+      if (safeRating >= 4) {
+        return `${bName} (${lName}) कडून मिळालेली सेवा अत्यंत उत्कृष्ट आणि सुखकर होती${combined ? ' - विशेषतः ' + combined : ''}। संपूर्ण प्रवासाचे नियोजन अतिशय योग्य पद्धतीने केले होते. कर्मचाऱ्यांचे सहकार्य उत्तम होते. मुंबईतील सर्वोत्कृष्ट ट्रॅव्हल एजन्सी!`;
+      } else if (safeRating === 3) {
+        return `${bName} सोबतचा अनुभव ठीकठाक होता${combined ? ' (' + combined + ')' : ''}। सेवेत आणखी सुधारणेस वाव आहे.`;
+      } else {
+        return `${bName} कडून मिळालेली सेवा अपेक्षेप्रमाणे नव्हती${combined ? ' (' + combined + ')' : ''}। सुधारणा आवश्यक आहे.`;
+      }
+    }
+
+    if (lang === 'gu') {
+      if (safeRating >= 4) {
+        return `${bName} (${lName}) સાથે અમારો અનુભવ ખૂબ જ ઉત્તમ અને યાદગાર રહ્યો${combined ? ' - ખાસ કરીને ' + combined : ''}। ટીમ ખૂબ જ સહાયક અને સમયસર સેવા આપનારી છે. મુંબઈમાં ટૂર અને ટ્રાવેલ માટે સંપૂર્ણ ભલામણ!`;
+      } else {
+        return `${bName} સાથેનો અનુભવ સરેરાશ રહ્યો${combined ? ' (' + combined + ')' : ''}। સેવામાં થોડો સુધારો જરૂરી છે.`;
+      }
+    }
+
+    // Default English
+    const available = getReviewsForRating(safeRating, bName, lName);
+    const baseReview = available[optionIdx % available.length] || available[0];
+    const hasCustom = (note && note.trim().length > 0) || promptNames.length > 0 || staff;
     if (!hasCustom) {
       return baseReview;
     }
-
-    const notePart = note ? note.trim() : '';
-    const promptsPart = promptNames.length > 0 ? promptNames.join(', ') : '';
-    const combined = [notePart, promptsPart].filter(Boolean).join(' · ');
 
     if (safeRating >= 4) {
       return `I recently booked with ${bName} in ${lName}, and the entire experience was outstanding from start to finish. In particular, ${combined}. The team was exceptionally professional, responsive, and attentive to all our requirements. Everything was handled with precision and warmth. Highly recommended!`;
@@ -136,6 +177,14 @@ export default function CustomerReview() {
         }
         setLoading(false);
       });
+
+    // Also fetch staff members for attribution
+    fetch(`/api/staff/public/${targetLocId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setStaffList(data);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -148,7 +197,7 @@ export default function CustomerReview() {
     fetch('/api/analytics/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locationId: activeLocId, eventType, language: 'en' })
+      body: JSON.stringify({ locationId: activeLocId, eventType, language: selectedLang })
     }).catch(() => {});
   };
 
@@ -157,7 +206,7 @@ export default function CustomerReview() {
     setRating(newRating);
     setReviewOptionIndex(0);
     logEvent('rating_selected');
-    const text = synthesizeReview(newRating, selectedPrompts, customNote, 0);
+    const text = synthesizeReview(newRating, selectedPrompts, customNote, 0, selectedLang, selectedStaff);
     setEditedDraft(text);
   };
 
@@ -169,21 +218,90 @@ export default function CustomerReview() {
       ? selectedPrompts.filter(id => id !== promptId)
       : [...selectedPrompts, promptId];
     setSelectedPrompts(updated);
-    const text = synthesizeReview(rating, updated, customNote, reviewOptionIndex);
+    const text = synthesizeReview(rating, updated, customNote, reviewOptionIndex, selectedLang, selectedStaff);
     setEditedDraft(text);
   };
 
+  // Handle language switch
+  const handleLanguageChange = (langCode) => {
+    playTapSound(650);
+    setSelectedLang(langCode);
+    const text = synthesizeReview(rating, selectedPrompts, customNote, reviewOptionIndex, langCode, selectedStaff);
+    setEditedDraft(text);
+    handleAiEnhanceWithNote(customNote, langCode);
+  };
+
+  // Voice Dictation (Web Speech API)
+  const handleToggleVoiceDictation = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice dictation is supported in modern mobile & desktop browsers (Chrome, Edge, Safari).');
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = selectedLang === 'hi' ? 'hi-IN' : selectedLang === 'mr' ? 'mr-IN' : selectedLang === 'gu' ? 'gu-IN' : 'en-IN';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        playTapSound(800);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          const updatedNote = customNote ? `${customNote} ${transcript}` : transcript;
+          setCustomNote(updatedNote);
+          setIsListening(false);
+          handleAiEnhanceWithNote(updatedNote, selectedLang);
+        }
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.warn('Speech recognition init error:', e);
+      setIsListening(false);
+    }
+  };
+
   // AI Enhance button triggered by user
-  const handleAiEnhance = async () => {
+  const handleAiEnhance = () => {
+    handleAiEnhanceWithNote(customNote, selectedLang);
+  };
+
+  const handleAiEnhanceWithNote = async (overrideNote, overrideLang) => {
     playTapSound(750);
     setIsAiGenerating(true);
     logEvent('draft_generated');
 
+    const noteToUse = overrideNote !== undefined ? overrideNote : customNote;
+    const langToUse = overrideLang || selectedLang;
     const promptTexts = (businessInfo?.prompts || [])
       .filter(p => selectedPrompts.includes(p.id))
       .map(p => p.text);
 
     const targetLocId = businessInfo?.locationId || locationId || 'default';
+    const noteWithStaff = [noteToUse, selectedStaff ? `Assisted by: ${selectedStaff}` : ''].filter(Boolean).join(' · ');
 
     try {
       const res = await fetch('/api/drafts/generate', {
@@ -193,8 +311,8 @@ export default function CustomerReview() {
           locationId: targetLocId,
           starRating: rating || 5,
           selectedPrompts: promptTexts,
-          language: 'en',
-          customDetails: customNote
+          language: langToUse,
+          customDetails: noteWithStaff
         })
       });
 
@@ -210,7 +328,7 @@ export default function CustomerReview() {
     } catch (_) {}
 
     // Fallback instant synthesis
-    const localText = synthesizeReview(rating, selectedPrompts, customNote, reviewOptionIndex);
+    const localText = synthesizeReview(rating, selectedPrompts, noteToUse, reviewOptionIndex, langToUse, selectedStaff);
     setEditedDraft(localText);
     playSuccessChime();
     setIsAiGenerating(false);
@@ -358,6 +476,38 @@ export default function CustomerReview() {
         {!isSubmitted ? (
           <main className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-amber-900/10 space-y-5">
             
+            {/* Personalized Guest Welcome (from WhatsApp link) */}
+            {urlCname && (
+              <div className="bg-teal-50/90 border border-teal-200/80 rounded-2xl p-3 text-xs text-teal-950 font-bold flex items-center justify-between">
+                <span>👋 Welcome, {urlCname}!</span>
+                <span className="text-[11px] font-semibold text-teal-700">Trident Net Holidays</span>
+              </div>
+            )}
+
+            {/* Language Selection Row */}
+            <div className="flex items-center justify-center gap-1.5 pb-1">
+              {[
+                { code: 'en', label: 'English', flag: '🇬🇧' },
+                { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+                { code: 'mr', label: 'मराठी', flag: '🚩' },
+                { code: 'gu', label: 'ગુજરાતી', flag: '🪔' }
+              ].map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => handleLanguageChange(l.code)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 border ${
+                    selectedLang === l.code
+                      ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                      : 'bg-stone-50 hover:bg-stone-100 text-stone-600 border-stone-200'
+                  }`}
+                >
+                  <span>{l.flag}</span>
+                  <span>{l.label}</span>
+                </button>
+              ))}
+            </div>
+
             {/* 1. Star Rating */}
             <div className="text-center space-y-1">
               <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
@@ -400,6 +550,36 @@ export default function CustomerReview() {
               </div>
             )}
 
+            {/* Optional Staff Attribution */}
+            {staffList.length > 0 && (
+              <div className="pt-1 border-t border-slate-100 space-y-1.5">
+                <label className="block text-[11px] font-bold text-slate-600 px-1 flex items-center gap-1">
+                  <Award size={13} className="text-amber-500" /> Who assisted you today? (Optional)
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {staffList.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        const nextStaff = selectedStaff === s.name ? '' : s.name;
+                        setSelectedStaff(nextStaff);
+                        const text = synthesizeReview(rating, selectedPrompts, customNote, reviewOptionIndex, selectedLang, nextStaff);
+                        setEditedDraft(text);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border ${
+                        selectedStaff === s.name
+                          ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                          : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+                      }`}
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* 3. Quick Highlight Chips */}
             {businessInfo?.prompts && businessInfo.prompts.length > 0 && (
               <div className="pt-1 border-t border-slate-100">
@@ -411,18 +591,38 @@ export default function CustomerReview() {
               </div>
             )}
 
-            {/* 4. AI Custom Detail Input */}
+            {/* 4. AI Custom Detail Input with Voice Dictation */}
             <div className="pt-1 border-t border-slate-100 space-y-2">
-              <label className="block text-xs font-bold text-slate-700 px-1">
-                ✨ Mention anything specific? (Optional)
-              </label>
+              <div className="flex items-center justify-between px-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  ✨ Mention anything specific? (Optional)
+                </label>
+                {isListening && (
+                  <span className="text-[11px] font-bold text-red-600 animate-pulse flex items-center gap-1">
+                    <Mic size={12} /> Listening... Speak now
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleVoiceDictation}
+                  className={`p-2.5 rounded-xl border flex items-center justify-center transition shrink-0 ${
+                    isListening 
+                      ? 'bg-red-500 text-white border-red-600 animate-pulse shadow-md shadow-red-500/30' 
+                      : 'bg-slate-50 hover:bg-teal-50 text-slate-600 hover:text-teal-700 border-slate-200'
+                  }`}
+                  title={isListening ? "Listening... Tap to stop" : "Tap and speak your review"}
+                >
+                  <Mic size={16} className={isListening ? 'animate-bounce' : ''} />
+                </button>
+
                 <input
                   type="text"
                   value={customNote}
                   onChange={(e) => setCustomNote(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAiEnhance(); }}
-                  placeholder="E.g., booked Dubai trip, quick visa approval, great driver..."
+                  placeholder="Type or tap mic: 'booked Dubai trip, quick visa...'"
                   className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-teal-600 focus:outline-none transition"
                 />
                 <button

@@ -60,3 +60,25 @@ CREATE TABLE IF NOT EXISTS private_feedbacks (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(location_id) REFERENCES locations(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS staff_members (
+    id TEXT PRIMARY KEY,
+    business_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT DEFAULT 'Staff',
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(business_id) REFERENCES businesses(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS whatsapp_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    location_id TEXT NOT NULL,
+    customer_name TEXT,
+    customer_phone TEXT NOT NULL,
+    service_name TEXT,
+    staff_name TEXT,
+    status TEXT DEFAULT 'sent',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(location_id) REFERENCES locations(id) ON DELETE CASCADE
+);

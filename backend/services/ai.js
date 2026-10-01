@@ -5,21 +5,60 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
  * Natural language helper to construct human-sounding long-form draft variants
  * categorized by star rating (1 to 5) without hallucinating any facts.
  */
-function createFallbackVariants({ businessName, locationName, starRating = 5, selectedPrompts = [], customDetails = '', tone }) {
+function createFallbackVariants({ businessName, locationName, starRating = 5, selectedPrompts = [], customDetails = '', language = 'en', tone }) {
     const safeRating = Math.max(1, Math.min(5, Number(starRating) || 5));
+    const lang = String(language || 'en').toLowerCase();
     const reviews = getReviewsForRating(safeRating, businessName, locationName);
     
     const hasCustom = (customDetails && customDetails.trim().length > 0) || (selectedPrompts && selectedPrompts.length > 0);
-    
+    const detailsSnippet = customDetails ? customDetails.trim() : '';
+    const promptsSnippet = (selectedPrompts && selectedPrompts.length > 0) ? selectedPrompts.join(', ') : '';
+    const combined = [detailsSnippet, promptsSnippet].filter(Boolean).join(' · ');
+
     let v1 = reviews[0];
     let v2 = reviews[1] || reviews[0];
     let v3 = reviews[2] || reviews[0];
 
-    if (hasCustom) {
-        const detailsSnippet = customDetails ? customDetails.trim() : '';
-        const promptsSnippet = (selectedPrompts && selectedPrompts.length > 0) ? selectedPrompts.join(', ') : '';
-        const combined = [detailsSnippet, promptsSnippet].filter(Boolean).join(' · ');
-        
+    // Multilingual Fallbacks for Indian Local Businesses
+    if (lang === 'hi') {
+        if (safeRating >= 4) {
+            v1 = `${businessName} (${locationName}) के साथ हमारा अनुभव बेहद शानदार रहा। उनकी टीम ने हमारी यात्रा की हर व्यवस्था बहुत ही कुशलता और समय पर की${combined ? ' - विशेषकर ' + combined : ''}। स्टाफ का व्यवहार बहुत विनम्र और मददगार था। मुंबई में टूर और ट्रेवल के लिए इन्हें पूरे विश्वास के साथ 5 स्टार दूंगा!`;
+            v2 = `हाल ही में हमने ${businessName} से अपनी बुकिंग कराई थी। ${locationName} में इतनी बेहतरीन और पारदर्शी सर्विस मिलना बहुत सुखद रहा${combined ? ' (' + combined + ')' : ''}। भविष्य में भी हम इन्हीं से यात्रा की योजना बनाएंगे। धन्यवाद!`;
+            v3 = `उत्कृष्ट ग्राहक सेवा और बेहतरीन हॉलिडे पैकेज! ${businessName} ने हमारी जरूरत का पूरा ध्यान रखा${combined ? ', खास तौर पर ' + combined : ''}। मुंबई में बेस्ट ट्रेवल एजेंसी!`;
+        } else if (safeRating === 3) {
+            v1 = `${businessName} के साथ हमारा अनुभव ठीक-ठाक रहा${combined ? ' (' + combined + ')' : ''}। सर्विस संतोषजनक थी लेकिन ग्राहक सहायता और समयबद्धता में थोड़ा और सुधार किया जा सकता है।`;
+            v2 = `सामान्य अनुभव। बुकिंग हो गई लेकिन कुछ सूचनाओं के लिए बार-बार फॉलोअप करना पड़ा। कुल मिलाकर 3 स्टार।`;
+            v3 = `औसत सेवा। स्टाफ मददगार था लेकिन प्लानिंग में थोड़ी और तेजी होनी चाहिए थी।`;
+        } else {
+            v1 = `${businessName} के साथ हमारा अनुभव निराशाजनक रहा${combined ? ' - ' + combined : ''}। समय पर सही जानकारी नहीं मिली और कोऑर्डिनेशन में काफी कमी दिखी। सुधार की आवश्यकता है।`;
+            v2 = `सर्विस उम्मीद के मुताबिक नहीं थी। बेहतर कम्युनिकेशन और सपोर्ट की सख्त जरूरत है।`;
+            v3 = `मैनेजमेंट को ग्राहक सेवा और समयबद्धता पर गंभीरता से ध्यान देना चाहिए।`;
+        }
+    } else if (lang === 'mr') {
+        if (safeRating >= 4) {
+            v1 = `${businessName} (${locationName}) कडून मिळालेली सेवा अत्यंत उत्कृष्ट आणि सुखकर होती${combined ? ' - विशेषतः ' + combined : ''}। संपूर्ण प्रवासाचे नियोजन अतिशय योग्य पद्धतीने केले होते. कर्मचाऱ्यांचे सहकार्य आणि मार्गदर्शन उत्तम होते. मुंबईतील सर्वोत्कृष्ट ट्रॅव्हल एजन्सी!`;
+            v2 = `आमच्या सहलीचे उत्तम नियोजन केल्याबद्दल ${businessName} चे मनःपूर्वक आभार${combined ? ' (' + combined + ')' : ''}। सर्व व्यवस्था सुरळीत पार पडली. नक्कीच पुन्हा यांच्याकडूनच बुकिंग करू!`;
+            v3 = `अतिशय विश्वासार्ह आणि तत्पर सेवा! ${businessName} ने प्रत्येक बाबीकडे बारकाईने लक्ष दिले${combined ? ', विशेषतः ' + combined : ''}। ५ स्टार्स!`;
+        } else if (safeRating === 3) {
+            v1 = `${businessName} सोबतचा अनुभव ठीकठाक होता${combined ? ' (' + combined + ')' : ''}। काम झाले पण माहिती मिळण्यासाठी वेळ लागला. सेवेत आणखी सुधारणेस वाव आहे.`;
+            v2 = `मध्यम अनुभव. नियोजनात अजून थोडे अचूक नियोजन अपेक्षित होते. ३ स्टार.`;
+            v3 = `सर्वसाधारण सेवा. स्टाफ चांगला आहे पण वेळेचे भान आणखी राखायला हवे.`;
+        } else {
+            v1 = `${businessName} कडून मिळालेली सेवा अपेक्षेप्रमाणे नव्हती${combined ? ' (' + combined + ')' : ''}। योग्य माहिती वेळेत मिळाली नाही, यात सुधारणा आवश्यक आहे.`;
+            v2 = `समन्वयाचा अभाव जाणवला. ग्राहकांशी संवाद अधिक चांगला असायला हवा.`;
+            v3 = `निराशाजनक अनुभव. व्यवस्थापनाने ग्राहकांच्या अडचणी वेळेवर सोडवायला हव्यात.`;
+        }
+    } else if (lang === 'gu') {
+        if (safeRating >= 4) {
+            v1 = `${businessName} (${locationName}) સાથે અમારો અનુભવ ખૂબ જ ઉત્તમ અને યાદગાર રહ્યો${combined ? ' - ખાસ કરીને ' + combined : ''}। ટીમ ખૂબ જ સહાયક અને સમયસર સેવા આપનારી છે. મુંબઈમાં ટૂર અને ટ્રાવેલ માટે સંપૂર્ણ ભલામણ!`;
+            v2 = `અમારી મુસાફરીનું ખૂબ જ સુંદર આયોજન કરવા બદલ ${businessName} નો આભાર${combined ? ' (' + combined + ')' : ''}। બધી વ્યવસ્થા પારદર્શક અને સરસ હતી. 5 સ્ટાર સેવા!`;
+            v3 = `શાનદાર સર્વિસ અને સ્ટાફનું ઉત્તમ વર્તન! ${businessName} તરફથી બધું જ વ્યવસ્થિત રીતે સંભાળવામાં આવ્યું. ખૂબ ખૂબ આભાર!`;
+        } else {
+            v1 = `${businessName} સાથેનો અનુભવ સરેરાશ રહ્યો${combined ? ' (' + combined + ')' : ''}। સેવામાં થોડો સુધારો જરૂરી છે.`;
+            v2 = `સામાન્ય સર્વિસ. સ્ટાફે કસ્ટમર સપોર્ટમાં વધુ ધ્યાન આપવું જોઈએ.`;
+            v3 = `સમયસર માહિતી અને બહેતર સંકલનની જરૂર છે.`;
+        }
+    } else if (hasCustom) {
         if (safeRating >= 4) {
             v1 = `I recently booked with ${businessName} in ${locationName}, and the entire experience was outstanding from start to finish. In particular, ${combined}. The team was exceptionally professional, responsive, and attentive to all our requirements. Everything was handled with precision and warmth. Highly recommended!`;
             v2 = `Had a fantastic experience with ${businessName} (${locationName})! Their staff was very courteous and helpful regarding ${combined}. Transparent communication and top-tier customer care throughout. Will definitely be a returning customer!`;

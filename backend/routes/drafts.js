@@ -113,16 +113,19 @@ router.post('/generate', draftLimiter, async (req, res) => {
         res.json({ drafts: formattedDrafts, googleReviewLink: data.google_review_link });
     } catch (error) {
         console.error('Draft generation error:', error);
-        // Even on error, generate fallback review variants for Trident Net Holidays!
-        const { getReviewsForRating } = require('../services/reviewMessages');
-        const fallbackReviews = getReviewsForRating(5, 'Trident Net Holidays', 'Mumbai');
+        // Even on error, generate fallback review variants with full multilingual support
+        const { createFallbackVariants } = require('../services/ai');
+        const fallbackDrafts = createFallbackVariants({
+            businessName: (data && data.businessName) || 'Trident Net Holidays',
+            locationName: (data && data.locationName) || 'Mumbai',
+            starRating: req.body?.starRating || 5,
+            selectedPrompts: req.body?.selectedPrompts || [],
+            customDetails: req.body?.customDetails || '',
+            language: req.body?.language || 'en'
+        });
         res.json({
-            drafts: [
-                { id: '1', tone: 'Warm & Enthusiastic', badge: 'Recommended', text: fallbackReviews[0] },
-                { id: '2', tone: 'Detailed Praise', badge: 'Comprehensive', text: fallbackReviews[1] || fallbackReviews[0] },
-                { id: '3', tone: 'Thoughtful Review', badge: 'Balanced', text: fallbackReviews[2] || fallbackReviews[0] }
-            ],
-            googleReviewLink: 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai'
+            drafts: fallbackDrafts,
+            googleReviewLink: (data && data.google_review_link) || 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai'
         });
     }
 });
