@@ -18,17 +18,28 @@ const Overview = () => {
   const [stats, setStats] = useState(null);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
+  const loadData = () => {
+    return Promise.all([
       apiFetch('/api/analytics/summary').then(res => res.json()).catch(() => ({})),
       apiFetch('/api/locations').then(res => res.json()).catch(() => ([]))
     ]).then(([analyticsData, locationsData]) => {
       setStats(analyticsData || {});
       setLocations(Array.isArray(locationsData) ? locationsData : []);
       setLoading(false);
+      setRefreshing(false);
     });
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
 
   if (loading) {
     return (
@@ -39,20 +50,42 @@ const Overview = () => {
     );
   }
 
-  const qrScans = stats.qr_scan || 128;
-  const helperStarts = stats.helper_start || 94;
-  const draftsGenerated = stats.draft_generated || 78;
-  const googleClicks = stats.google_click || 62;
-  const directClicks = stats.direct_google_click || 18;
+  // 100% Genuine Database Telemetry - Zero Mock Numbers
+  const qrScans = Number(stats?.qr_scanned || stats?.qr_scan || 0);
+  const helperStarts = Number(stats?.rating_selected || stats?.helper_start || 0);
+  const draftsGenerated = Number(stats?.draft_generated || 0);
+  const googleClicks = Number(stats?.google_redirect_clicked || stats?.google_click || 0);
+  const directClicks = Number(stats?.direct_google_fallback_clicked || stats?.direct_google_click || 0);
 
   const totalReviewsInitiated = googleClicks + directClicks;
   const conversionRate = qrScans > 0 ? Math.round((totalReviewsInitiated / qrScans) * 100) : 0;
+  const calcPct = (count) => (qrScans > 0 ? Math.min(100, Math.round((count / qrScans) * 100)) : 0);
 
   const statCards = [
-    { title: 'Total QR Scans', value: qrScans.toLocaleString(), icon: QrCode, trend: { isPositive: true, value: 18 } },
-    { title: 'Drafts Created', value: draftsGenerated.toLocaleString(), icon: Sparkles, trend: { isPositive: true, value: 24 } },
-    { title: 'Outbound to Google', value: totalReviewsInitiated.toLocaleString(), icon: MousePointerClick, trend: { isPositive: true, value: 14 } },
-    { title: 'Scan-to-Google Rate', value: `${conversionRate}%`, icon: BarChart3, trend: { isPositive: true, value: 5 } },
+    { 
+      title: 'Total QR Scans', 
+      value: qrScans.toLocaleString(), 
+      icon: QrCode, 
+      subtitle: qrScans > 0 ? 'Live customer scans' : 'Awaiting first scan' 
+    },
+    { 
+      title: 'Drafts Created', 
+      value: draftsGenerated.toLocaleString(), 
+      icon: Sparkles, 
+      subtitle: draftsGenerated > 0 ? 'Grounded AI drafts' : 'No drafts generated yet' 
+    },
+    { 
+      title: 'Outbound to Google', 
+      value: totalReviewsInitiated.toLocaleString(), 
+      icon: MousePointerClick, 
+      subtitle: totalReviewsInitiated > 0 ? 'Launched Google review form' : 'No redirects yet' 
+    },
+    { 
+      title: 'Scan-to-Google Rate', 
+      value: `${conversionRate}%`, 
+      icon: BarChart3, 
+      subtitle: qrScans > 0 ? `${totalReviewsInitiated} of ${qrScans} visitors converted` : 'Calculates after first scan' 
+    },
   ];
 
   const firstLocation = locations[0];
@@ -71,8 +104,19 @@ const Overview = () => {
           </p>
         </div>
 
-        {firstLocation && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs backdrop-blur-xs transition active:scale-95 disabled:opacity-50"
+            title="Refresh latest scan telemetry"
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            <span>{refreshing ? 'Updating...' : 'Refresh'}</span>
+          </button>
+
+          {firstLocation && (
             <Link
               to={`/review/${firstLocation.id}`}
               target="_blank"
@@ -81,8 +125,8 @@ const Overview = () => {
               <span>Test Customer Flow</span>
               <ExternalLink size={14} />
             </Link>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* 4 Stats Cards */}
@@ -105,18 +149,44 @@ const Overview = () => {
                 Path of real visitors from scanning physical QR to submitting on Google
               </p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
-              Last 30 Days
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                100% Live Telemetry
+              </span>
+            </div>
           </div>
+
+          {qrScans === 0 && (
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-950">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 text-amber-800">
+                  <QrCode size={18} />
+                </div>
+                <div>
+                  <p className="font-bold">Awaiting First Customer Scan</p>
+                  <p className="text-amber-800/80 text-[11px]">Real-time tracking is connected. Tap "Test Customer Flow" or scan your physical QR stands to see your conversion funnel update.</p>
+                </div>
+              </div>
+              {firstLocation && (
+                <Link
+                  to={`/review/${firstLocation.id}`}
+                  target="_blank"
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs shrink-0 transition"
+                >
+                  <span>Simulate Test Scan</span>
+                  <ExternalLink size={12} />
+                </Link>
+              )}
+            </div>
+          )}
 
           <div className="space-y-4">
             {[
-              { label: '1. In-Store QR Scanned', count: qrScans, pct: 100, color: 'bg-blue-500', desc: 'Customer points camera at receipt/table tent' },
-              { label: '2. Assistant Started', count: helperStarts, pct: Math.round((helperStarts / qrScans) * 100), color: 'bg-indigo-500', desc: 'Tapped "Help me draft a review"' },
-              { label: '3. AI Draft Generated', count: draftsGenerated, pct: Math.round((draftsGenerated / qrScans) * 100), color: 'bg-violet-500', desc: 'Customer selected factual details' },
-              { label: '4. Outbound to Google Maps', count: googleClicks, pct: Math.round((googleClicks / qrScans) * 100), color: 'bg-emerald-500', desc: 'Copied draft and launched Google review form' },
-              { label: 'Direct to Google (Bypass)', count: directClicks, pct: Math.round((directClicks / qrScans) * 100), color: 'bg-amber-500', desc: 'Customers who preferred writing with zero AI' },
+              { label: '1. In-Store QR Scanned', count: qrScans, pct: qrScans > 0 ? 100 : 0, color: 'bg-blue-500', desc: 'Customer points camera at receipt/table tent' },
+              { label: '2. Assistant Started', count: helperStarts, pct: calcPct(helperStarts), color: 'bg-indigo-500', desc: 'Tapped "Help me draft a review" or selected rating' },
+              { label: '3. AI Draft Generated', count: draftsGenerated, pct: calcPct(draftsGenerated), color: 'bg-violet-500', desc: 'Customer selected factual details' },
+              { label: '4. Outbound to Google Maps', count: googleClicks, pct: calcPct(googleClicks), color: 'bg-emerald-500', desc: 'Copied draft and launched Google review form' },
+              { label: 'Direct to Google (Bypass)', count: directClicks, pct: calcPct(directClicks), color: 'bg-amber-500', desc: 'Customers who preferred writing with zero AI' },
             ].map(step => (
               <div key={step.label} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">

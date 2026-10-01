@@ -60,6 +60,21 @@ export default function CustomerReview() {
         setBusinessInfo(data);
         if (data.language) setSelectedLang(data.language);
         setLoading(false);
+
+        // Record real QR scan telemetry (guarded per browser tab session)
+        const scanSessionKey = `madverse_scan_${locationId}`;
+        if (!sessionStorage.getItem(scanSessionKey)) {
+          sessionStorage.setItem(scanSessionKey, 'logged');
+          fetch('/api/analytics/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              locationId, 
+              eventType: 'qr_scanned', 
+              language: data.language || 'en' 
+            })
+          }).catch(() => {});
+        }
       })
       .catch(err => {
         setError(err.message);
@@ -79,7 +94,7 @@ export default function CustomerReview() {
   const handleNext = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
   const handleBack = () => setStep(s => Math.max(0, s - 1));
   
-  const handleGoogleRedirect = (eventName) => {
+  const handleGoogleRedirect = (eventName = 'google_redirect_clicked') => {
     logEvent(eventName);
     if (businessInfo?.googleReviewLink) {
       const url = String(businessInfo.googleReviewLink).trim();
@@ -88,9 +103,7 @@ export default function CustomerReview() {
       } else {
         console.error('Refused to open invalid or unsafe URL protocol');
       }
-      if (eventName === 'google_click') {
-        setStep(4); // Move to thank you step
-      }
+      setStep(4); // Move to thank you step
     }
   };
 
@@ -108,6 +121,7 @@ export default function CustomerReview() {
 
   const generateDrafts = async () => {
     setIsGenerating(true);
+    logEvent('draft_generated');
     handleNext();
     
     const promptTexts = (businessInfo?.prompts || [])
@@ -170,6 +184,7 @@ export default function CustomerReview() {
   };
 
   const handleCopy = (e) => {
+    logEvent('copy_clicked');
     playTapSound(950, 0.08);
     if (e && e.clientX && e.clientY) {
       fireConfetti(e.clientX, e.clientY);
@@ -304,7 +319,7 @@ export default function CustomerReview() {
                 <button
                   type="button"
                   onClick={() => {
-                    logEvent('helper_start');
+                    logEvent('rating_selected');
                     handleNext();
                   }}
                   className="w-full py-3.5 px-5 bg-gradient-to-r from-teal-600 via-teal-700 to-amber-700 hover:from-teal-700 hover:to-amber-800 text-white rounded-2xl font-bold text-sm shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 transition-all transform active:scale-98"
@@ -316,7 +331,7 @@ export default function CustomerReview() {
 
                 <button
                   type="button"
-                  onClick={() => handleGoogleRedirect('direct_google_click')}
+                  onClick={() => handleGoogleRedirect('direct_google_fallback_clicked')}
                   className="w-full py-3 px-5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-semibold text-xs border border-slate-200 flex items-center justify-center gap-2 transition"
                 >
                   <ExternalLink size={14} className="text-slate-400" />
@@ -338,7 +353,13 @@ export default function CustomerReview() {
                 </p>
               </div>
 
-              <StarSelector value={rating} onChange={setRating} />
+              <StarSelector 
+                value={rating} 
+                onChange={(val) => {
+                  setRating(val);
+                  logEvent('rating_selected');
+                }} 
+              />
 
               <div className="flex items-center gap-3 pt-2">
                 <button
@@ -378,6 +399,7 @@ export default function CustomerReview() {
                 prompts={getSortedPrompts()}
                 selectedPromptIds={selectedPrompts}
                 onTogglePrompt={(id) => {
+                  logEvent('prompt_toggled');
                   setSelectedPrompts(prev => 
                     prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
                   );
@@ -394,6 +416,7 @@ export default function CustomerReview() {
                   </label>
                   <VoiceInput 
                     onTranscript={(spokenText) => {
+                      logEvent('voice_dictation_used');
                       setCustomText(prev => prev ? `${prev} ${spokenText}` : spokenText);
                     }}
                   />
@@ -540,7 +563,7 @@ export default function CustomerReview() {
 
                         <button
                           type="button"
-                          onClick={() => handleGoogleRedirect('google_click')}
+                          onClick={() => handleGoogleRedirect('google_redirect_clicked')}
                           className="w-full py-3.5 px-5 bg-gradient-to-r from-teal-600 via-teal-700 to-amber-700 hover:from-teal-700 hover:to-amber-800 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 transition active:scale-98"
                         >
                           <span>2. Open Google Review Form</span>

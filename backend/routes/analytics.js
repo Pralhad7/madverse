@@ -23,13 +23,23 @@ const ALLOWED_EVENTS = new Set([
     'voice_dictation_used'
 ]);
 
+// Normalize legacy/shorthand event names to canonical event types
+const EVENT_ALIASES = {
+    'qr_scan': 'qr_scanned',
+    'helper_start': 'rating_selected',
+    'google_click': 'google_redirect_clicked',
+    'direct_google_click': 'direct_google_fallback_clicked'
+};
+
 router.post('/event', limiter, (req, res) => {
     try {
-        const { locationId, eventType, language = 'en' } = req.body;
+        const { locationId, eventType: rawEventType, language = 'en' } = req.body;
         
-        if (!locationId || !eventType) {
+        if (!locationId || !rawEventType) {
             return res.status(400).json({ error: 'Location ID and Event Type are required' });
         }
+
+        const eventType = EVENT_ALIASES[rawEventType] || rawEventType;
 
         if (!ALLOWED_EVENTS.has(eventType)) {
             return res.status(400).json({ error: 'Invalid event type' });
@@ -40,7 +50,7 @@ router.post('/event', limiter, (req, res) => {
         getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
           .run(locationId, eventType, safeLanguage);
           
-        res.status(201).json({ success: true });
+        res.status(201).json({ success: true, eventType });
     } catch (error) {
         res.status(500).json({ error: 'Failed to log event' });
     }
@@ -58,10 +68,23 @@ router.get('/summary/:locationId', auth, (req, res) => {
             GROUP BY event_type
         `).all(req.params.locationId);
 
-        const result = stats.reduce((acc, curr) => {
-            acc[curr.event_type] = curr.count;
-            return acc;
-        }, {});
+        const result = {
+            qr_scanned: 0,
+            page_viewed: 0,
+            rating_selected: 0,
+            draft_generated: 0,
+            copy_clicked: 0,
+            google_redirect_clicked: 0,
+            direct_google_fallback_clicked: 0,
+            manager_feedback_submitted: 0,
+            prompt_toggled: 0,
+            voice_dictation_used: 0
+        };
+
+        stats.forEach(curr => {
+            const key = EVENT_ALIASES[curr.event_type] || curr.event_type;
+            result[key] = (result[key] || 0) + (Number(curr.count) || 0);
+        });
 
         res.json(result);
     } catch (error) {
@@ -79,10 +102,23 @@ router.get('/summary', auth, (req, res) => {
             GROUP BY a.event_type
         `).all(req.user.business_id);
 
-        const result = stats.reduce((acc, curr) => {
-            acc[curr.event_type] = curr.count;
-            return acc;
-        }, {});
+        const result = {
+            qr_scanned: 0,
+            page_viewed: 0,
+            rating_selected: 0,
+            draft_generated: 0,
+            copy_clicked: 0,
+            google_redirect_clicked: 0,
+            direct_google_fallback_clicked: 0,
+            manager_feedback_submitted: 0,
+            prompt_toggled: 0,
+            voice_dictation_used: 0
+        };
+
+        stats.forEach(curr => {
+            const key = EVENT_ALIASES[curr.event_type] || curr.event_type;
+            result[key] = (result[key] || 0) + (Number(curr.count) || 0);
+        });
 
         res.json(result);
     } catch (error) {
