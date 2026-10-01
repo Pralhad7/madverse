@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const fs = require('fs');
 const { initDB } = require('./db/init');
 
 const app = express();
@@ -51,11 +52,26 @@ async function start() {
     app.use('/api/drafts', require('./routes/drafts'));
     app.use('/api/analytics', require('./routes/analytics'));
 
-    // Serve static frontend in production
-    if (process.env.NODE_ENV === 'production') {
-        app.use(express.static(path.join(__dirname, '../frontend/dist')));
+    // Serve static frontend bundle
+    const possibleDistPaths = [
+        path.join(__dirname, '../frontend/dist'),
+        path.join(process.cwd(), 'frontend/dist'),
+        path.join(__dirname, 'frontend/dist'),
+        path.join(process.cwd(), 'dist'),
+        path.join(__dirname, '../dist')
+    ];
+    let frontendDist = possibleDistPaths.find(p => fs.existsSync(path.join(p, 'index.html')));
+
+    if (frontendDist) {
+        console.log(`Serving frontend static files from: ${frontendDist}`);
+        app.use(express.static(frontendDist));
         app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+            res.sendFile(path.join(frontendDist, 'index.html'));
+        });
+    } else {
+        console.warn('Frontend dist not found, serving API only mode.');
+        app.get('/', (req, res) => {
+            res.json({ app: 'MadVerse API', status: 'online', note: 'Frontend dist is compiling or missing.' });
         });
     }
 
