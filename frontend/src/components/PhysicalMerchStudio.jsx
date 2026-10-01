@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { 
   Printer, Download, Sparkles, Layers, Sliders, 
-  RotateCw, Eye, Check, Star, ShieldCheck
+  RotateCw, Eye, Check, Star, ShieldCheck, Loader2
 } from 'lucide-react';
 import { playTapSound } from '../utils/sound';
 import logo from '../assets/logo.png';
@@ -17,8 +18,36 @@ export default function PhysicalMerchStudio({
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const cardRef = useRef(null);
 
-  const qrUrl = locationId ? `/api/qr/image/${locationId}` : '/logo.png';
-  const qrDownloadUrl = locationId ? `/api/qr/download/${locationId}` : qrUrl;
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [loadingQr, setLoadingQr] = useState(true);
+
+  const qrFallbackUrl = locationId ? `/api/qr/image/${locationId}` : '/logo.png';
+
+  useEffect(() => {
+    if (!locationId) return;
+    setLoadingQr(true);
+    const targetUrl = `${window.location.origin}/review/${locationId}`;
+
+    const darkColor = primaryColor && /^#[0-9a-fA-F]{3,6}$/.test(primaryColor) ? primaryColor : '#0D9488';
+
+    QRCode.toDataURL(targetUrl, {
+      width: 512,
+      margin: 2,
+      color: {
+        dark: darkColor,
+        light: '#ffffff'
+      }
+    })
+      .then(url => {
+        setQrDataUrl(url);
+        setLoadingQr(false);
+      })
+      .catch(err => {
+        console.warn('Client QR generation fallback to server API:', err);
+        setQrDataUrl(qrFallbackUrl);
+        setLoadingQr(false);
+      });
+  }, [locationId, primaryColor]);
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -38,6 +67,19 @@ export default function PhysicalMerchStudio({
   const handlePrint = () => {
     playTapSound(800);
     window.print();
+  };
+
+  const handleDownload = () => {
+    if (qrDataUrl && qrDataUrl.startsWith('data:')) {
+      const a = document.createElement('a');
+      a.href = qrDataUrl;
+      a.download = `${(businessName || 'Review').replace(/\s+/g, '_')}_QR.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      window.open(`/api/qr/download/${locationId}`, '_blank');
+    }
   };
 
   return (
@@ -117,8 +159,19 @@ export default function PhysicalMerchStudio({
                 </div>
 
                 {/* QR Code Frame */}
-                <div className="p-3 bg-white rounded-2xl border border-stone-200 inline-block shadow-xs">
-                  <img src={qrUrl} alt="QR Code" className="w-36 h-36 object-contain mx-auto" />
+                <div className="p-3 bg-white rounded-2xl border border-stone-200 inline-block shadow-xs min-w-[144px] min-h-[144px]">
+                  {loadingQr ? (
+                    <div className="w-36 h-36 flex flex-col items-center justify-center text-stone-400 gap-2">
+                      <Loader2 size={24} className="animate-spin text-teal-700" />
+                      <span className="text-[10px] font-semibold">Generating QR...</span>
+                    </div>
+                  ) : (
+                    <img 
+                      src={qrDataUrl || qrFallbackUrl} 
+                      alt="QR Code" 
+                      className="w-36 h-36 object-contain mx-auto" 
+                    />
+                  )}
                 </div>
 
                 {/* Footer Brand Label */}
@@ -155,8 +208,19 @@ export default function PhysicalMerchStudio({
                 </h3>
               </div>
 
-              <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 inline-block shadow-inner">
-                <img src={qrUrl} alt="QR Code" className="w-36 h-36 object-contain mx-auto" />
+              <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200 inline-block shadow-inner min-w-[144px] min-h-[144px]">
+                {loadingQr ? (
+                  <div className="w-36 h-36 flex flex-col items-center justify-center text-stone-400 gap-2">
+                    <Loader2 size={24} className="animate-spin text-teal-700" />
+                    <span className="text-[10px] font-semibold">Generating QR...</span>
+                  </div>
+                ) : (
+                  <img 
+                    src={qrDataUrl || qrFallbackUrl} 
+                    alt="QR Code" 
+                    className="w-36 h-36 object-contain mx-auto" 
+                  />
+                )}
               </div>
 
               <div className="space-y-1">
@@ -195,8 +259,18 @@ export default function PhysicalMerchStudio({
                 <h3 className="text-base font-black tracking-tight">{businessName}</h3>
               </div>
 
-              <div className="p-3 bg-white rounded-2xl inline-block shadow-md">
-                <img src={qrUrl} alt="QR Code" className="w-36 h-36 object-contain mx-auto" />
+              <div className="p-3 bg-white rounded-2xl inline-block shadow-md min-w-[128px] min-h-[128px]">
+                {loadingQr ? (
+                  <div className="w-32 h-32 flex flex-col items-center justify-center text-stone-400 gap-2">
+                    <Loader2 size={20} className="animate-spin text-teal-700" />
+                  </div>
+                ) : (
+                  <img 
+                    src={qrDataUrl || qrFallbackUrl} 
+                    alt="QR Code" 
+                    className="w-32 h-32 object-contain mx-auto" 
+                  />
+                )}
               </div>
 
               <div className="space-y-1">
@@ -219,8 +293,18 @@ export default function PhysicalMerchStudio({
 
               <div className="text-center space-y-2">
                 <p className="text-xs font-bold text-[#2B1810] leading-snug">{headline}</p>
-                <div className="p-2 bg-stone-50 rounded-xl border border-stone-200 inline-block">
-                  <img src={qrUrl} alt="QR Code" className="w-28 h-28 object-contain mx-auto" />
+                <div className="p-2 bg-stone-50 rounded-xl border border-stone-200 inline-block min-w-[80px] min-h-[80px]">
+                  {loadingQr ? (
+                    <div className="w-24 h-24 flex items-center justify-center text-stone-400">
+                      <Loader2 size={16} className="animate-spin text-teal-700" />
+                    </div>
+                  ) : (
+                    <img 
+                      src={qrDataUrl || qrFallbackUrl} 
+                      alt="QR Code" 
+                      className="w-24 h-24 object-contain mx-auto" 
+                    />
+                  )}
                 </div>
                 <p className="text-[10px] text-stone-500">Scan QR to share your review on Google</p>
               </div>
@@ -268,18 +352,19 @@ export default function PhysicalMerchStudio({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <a
-              href={qrDownloadUrl}
-              download={`${businessName}_QR.png`}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-[#2B1810] rounded-xl text-xs font-bold transition border border-stone-200"
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-[#2B1810] rounded-xl text-xs font-bold transition border border-stone-200 cursor-pointer"
             >
               <Download size={14} />
               <span>Download PNG</span>
-            </a>
+            </button>
 
             <button
+              type="button"
               onClick={handlePrint}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-98"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-98 cursor-pointer"
             >
               <Printer size={14} />
               <span>Print {merchType === 'acrylic' ? 'Stand Flyer' : merchType === 'tent' ? 'Table Tent' : merchType === 'sticker' ? 'Decal' : 'Slip'}</span>

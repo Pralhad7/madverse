@@ -22,7 +22,9 @@ class DBWrapper {
         return {
             run(...params) {
                 self._db.run(sql, params);
-                return { changes: self._db.getRowsModified() };
+                const changes = self._db.getRowsModified();
+                try { self.save(); } catch (_) {}
+                return { changes };
             },
             get(...params) {
                 const stmt = self._db.prepare(sql);
@@ -205,21 +207,6 @@ async function initDB() {
                 'http://localhost:5173/review/ef9b1224-1b18-4137-825d-0693d8dcd72f'
             );
             console.log('Seeded MadVerse brand and location.');
-        } else if (existingBiz.name !== 'MadVerse') {
-            db.prepare(`UPDATE businesses SET 
-                name = 'MadVerse', 
-                category = 'creative_studio', 
-                logo_url = '/logo.png', 
-                primary_color = '#0D9488', 
-                secondary_color = '#D97706', 
-                tone = 'creative & inspiring'
-                WHERE id = ?`).run(existingBiz.id);
-            db.prepare(`UPDATE locations SET 
-                name = 'MadVerse Experience Studio', 
-                address = '108 Artisan Boulevard, Innovation Quarter', 
-                google_review_link = 'https://g.page/r/madverse/review'
-                WHERE business_id = ?`).run(existingBiz.id);
-            console.log('Updated existing business to MadVerse.');
         }
     } catch (e) {
         console.error('MadVerse seed error:', e.message);

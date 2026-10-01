@@ -1,17 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { Download, Copy, Check, Printer, Sparkles, ExternalLink, Star } from 'lucide-react';
 
 const QRCodeDisplay = ({ locationId, businessName = 'Our Business', primaryColor = '#2563eb' }) => {
   const [copied, setCopied] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState(locationId ? `/api/qr/image/${locationId}` : null);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
   const [template, setTemplate] = useState('table-tent'); // 'table-tent', 'sticker', 'minimal'
   const reviewLink = `${window.location.origin}/review/${locationId}`;
 
   useEffect(() => {
-    if (locationId) {
-      setQrDataUrl(`/api/qr/image/${locationId}`);
-    }
-  }, [locationId]);
+    if (!locationId) return;
+    const targetUrl = `${window.location.origin}/review/${locationId}`;
+    const darkColor = primaryColor && /^#[0-9a-fA-F]{3,6}$/.test(primaryColor) ? primaryColor : '#2563eb';
+
+    QRCode.toDataURL(targetUrl, {
+      width: 512,
+      margin: 2,
+      color: {
+        dark: darkColor,
+        light: '#ffffff'
+      }
+    })
+      .then(url => setQrDataUrl(url))
+      .catch(err => {
+        console.warn('QRCodeDisplay fallback to server API:', err);
+        setQrDataUrl(`/api/qr/image/${locationId}`);
+      });
+  }, [locationId, primaryColor]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(reviewLink);
@@ -20,13 +35,16 @@ const QRCodeDisplay = ({ locationId, businessName = 'Our Business', primaryColor
   };
 
   const handleDownload = () => {
-    const downloadUrl = `/api/qr/download/${locationId}`;
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = `${businessName.replace(/\s+/g, '_')}_QR.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (qrDataUrl && qrDataUrl.startsWith('data:')) {
+      const a = document.createElement('a');
+      a.href = qrDataUrl;
+      a.download = `${businessName.replace(/\s+/g, '_')}_QR.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      window.open(`/api/qr/download/${locationId}`, '_blank');
+    }
   };
 
   const handlePrint = () => {

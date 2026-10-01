@@ -19,16 +19,19 @@ function getTargetUrl(req, locationId) {
 router.get('/image/:locationId', async (req, res) => {
     try {
         const location = getDB().prepare(`
-            SELECT l.id, l.qr_code_url, b.primary_color 
+            SELECT l.id, l.name, l.qr_code_url, b.primary_color 
             FROM locations l 
-            JOIN businesses b ON l.business_id = b.id 
+            LEFT JOIN businesses b ON l.business_id = b.id 
             WHERE l.id = ?
         `).get(req.params.locationId);
         
         if (!location) return res.status(404).json({ error: 'Location not found' });
         
         const targetUrl = getTargetUrl(req, location.id);
-        const buffer = await qrService.generateQRBuffer(targetUrl, { color: location.primary_color || '#0D9488' });
+        const safeColor = location.primary_color && /^#[0-9a-fA-F]{3,6}$/.test(location.primary_color)
+            ? location.primary_color 
+            : '#0D9488';
+        const buffer = await qrService.generateQRBuffer(targetUrl, { color: safeColor });
         
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Cache-Control', 'public, max-age=86400');
@@ -43,24 +46,27 @@ router.get('/image/:locationId', async (req, res) => {
 router.get('/generate/:locationId', async (req, res) => {
     try {
         const location = getDB().prepare(`
-            SELECT l.id, l.qr_code_url, b.primary_color 
+            SELECT l.id, l.name, l.qr_code_url, b.primary_color 
             FROM locations l 
-            JOIN businesses b ON l.business_id = b.id 
+            LEFT JOIN businesses b ON l.business_id = b.id 
             WHERE l.id = ?
         `).get(req.params.locationId);
         
         if (!location) return res.status(404).json({ error: 'Location not found' });
         
         const targetUrl = getTargetUrl(req, location.id);
+        const safeColor = location.primary_color && /^#[0-9a-fA-F]{3,6}$/.test(location.primary_color)
+            ? location.primary_color 
+            : '#0D9488';
 
         // If client accepts JSON, return JSON base64 dataUrl
         if (req.headers.accept && req.headers.accept.includes('application/json')) {
-            const dataUrl = await qrService.generateQRCode(targetUrl, { color: location.primary_color || '#0D9488' });
+            const dataUrl = await qrService.generateQRCode(targetUrl, { color: safeColor });
             return res.json({ dataUrl });
         }
         
         // Otherwise return raw PNG stream for <img> tags
-        const buffer = await qrService.generateQRBuffer(targetUrl, { color: location.primary_color || '#0D9488' });
+        const buffer = await qrService.generateQRBuffer(targetUrl, { color: safeColor });
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Cache-Control', 'public, max-age=86400');
         res.send(buffer);
@@ -76,14 +82,17 @@ router.get('/download/:locationId', async (req, res) => {
         const location = getDB().prepare(`
             SELECT l.id, l.name, b.primary_color 
             FROM locations l 
-            JOIN businesses b ON l.business_id = b.id 
+            LEFT JOIN businesses b ON l.business_id = b.id 
             WHERE l.id = ?
         `).get(req.params.locationId);
         
         if (!location) return res.status(404).json({ error: 'Location not found' });
         
         const targetUrl = getTargetUrl(req, location.id);
-        const buffer = await qrService.generateQRBuffer(targetUrl, { color: location.primary_color || '#0D9488' });
+        const safeColor = location.primary_color && /^#[0-9a-fA-F]{3,6}$/.test(location.primary_color)
+            ? location.primary_color 
+            : '#0D9488';
+        const buffer = await qrService.generateQRBuffer(targetUrl, { color: safeColor });
         
         const safeName = (location.name || 'qr-code').replace(/[^a-zA-Z0-9_-]/g, '_');
         res.setHeader('Content-Type', 'image/png');
