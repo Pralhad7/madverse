@@ -143,13 +143,51 @@ export default function CustomerReview() {
     playTapSound(700);
     const available = getReviewsForRating(
       rating || 5, 
-      businessInfo?.businessName || 'MadVerse', 
-      businessInfo?.locationName || 'Experience Studio'
+      businessInfo?.businessName || 'Trident Net Holidays', 
+      businessInfo?.locationName || 'Trident Net Holidays'
     );
     const nextIdx = (reviewOptionIndex + 1) % available.length;
     setReviewOptionIndex(nextIdx);
     setEditedDraft(available[nextIdx]);
   };
+
+  // Helper to build 3 diverse, long-form handcrafted drafts for the current rating
+  const buildGuaranteedDrafts = () => {
+    const bName = businessInfo?.businessName || 'Trident Net Holidays';
+    const lName = businessInfo?.locationName || 'Trident Net Holidays';
+    const activeRating = rating || 5;
+    const longReviews = getReviewsForRating(activeRating, bName, lName);
+    return [
+      { 
+        id: '1', 
+        tone: activeRating >= 4 ? 'Warm & Enthusiastic' : activeRating === 3 ? 'Balanced Assessment' : 'Constructive & Direct', 
+        badge: 'Detailed',
+        text: longReviews[0] 
+      },
+      { 
+        id: '2', 
+        tone: activeRating >= 4 ? 'Detailed Praise' : 'Thorough Observations', 
+        badge: 'Comprehensive',
+        text: longReviews[1] || longReviews[0] 
+      },
+      { 
+        id: '3', 
+        tone: activeRating >= 4 ? 'Thoughtful Review' : 'Actionable Feedback', 
+        badge: 'Balanced',
+        text: longReviews[2] || longReviews[0] 
+      }
+    ];
+  };
+
+  // Safety guard: if user reaches step 3 and drafts is empty, automatically populate
+  useEffect(() => {
+    if (step === 3 && (!drafts || drafts.length === 0)) {
+      const guaranteed = buildGuaranteedDrafts();
+      setDrafts(guaranteed);
+      setSelectedDraftId(guaranteed[0].id);
+      setEditedDraft(guaranteed[0].text);
+    }
+  }, [step, drafts, rating, businessInfo]);
 
   const generateDrafts = async () => {
     setIsGenerating(true);
@@ -160,52 +198,38 @@ export default function CustomerReview() {
       .filter(p => selectedPrompts.includes(p.id))
       .map(p => p.text);
 
+    const activeRating = rating || 5;
+    const targetLocId = businessInfo?.locationId || locationId || 'default';
+
     try {
       const res = await fetch('/api/drafts/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          locationId,
-          starRating: rating || undefined,
+          locationId: targetLocId,
+          starRating: activeRating,
           selectedPrompts: promptTexts,
           language: selectedLang,
           customDetails: customText
         })
       });
-      const data = await res.json();
-      const generatedDrafts = data.drafts || [];
-      setDrafts(generatedDrafts);
-      if (generatedDrafts.length > 0) {
-        setSelectedDraftId(generatedDrafts[0].id);
-        setEditedDraft(generatedDrafts[0].text);
+
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
       }
+
+      const data = await res.json();
+      const generatedDrafts = (data && Array.isArray(data.drafts) && data.drafts.length > 0)
+        ? data.drafts
+        : buildGuaranteedDrafts();
+
+      setDrafts(generatedDrafts);
+      setSelectedDraftId(generatedDrafts[0].id);
+      setEditedDraft(generatedDrafts[0].text);
       playSuccessChime();
     } catch (err) {
-      const longReviews = getReviewsForRating(
-        rating || 5,
-        businessInfo?.businessName || 'MadVerse',
-        businessInfo?.locationName || 'Experience Studio'
-      );
-      const fallbackList = [
-        { 
-          id: '1', 
-          tone: rating >= 4 ? 'Warm & Enthusiastic' : rating === 3 ? 'Balanced Assessment' : 'Constructive & Direct', 
-          badge: 'Detailed',
-          text: longReviews[0] 
-        },
-        { 
-          id: '2', 
-          tone: rating >= 4 ? 'Detailed Praise' : 'Thorough Observations', 
-          badge: 'Comprehensive',
-          text: longReviews[1] || longReviews[0] 
-        },
-        { 
-          id: '3', 
-          tone: rating >= 4 ? 'Thoughtful Review' : 'Actionable Feedback', 
-          badge: 'Balanced',
-          text: longReviews[2] || longReviews[0] 
-        }
-      ];
+      console.warn('API draft generation issue, using guaranteed local reviews:', err);
+      const fallbackList = buildGuaranteedDrafts();
       setDrafts(fallbackList);
       setSelectedDraftId(fallbackList[0].id);
       setEditedDraft(fallbackList[0].text);
