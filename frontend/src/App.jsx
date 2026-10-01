@@ -13,6 +13,7 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/review" element={<CustomerReview />} />
         <Route path="/review/:locationId" element={<CustomerReview />} />
 
         {/* Auth routes */}

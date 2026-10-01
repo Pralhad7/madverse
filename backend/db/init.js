@@ -172,6 +172,19 @@ async function initDB() {
                     { id: 'rt5', text: 'Unhelpful staff', type: 'negative' },
                     { id: 'rt6', text: 'Long checkout line', type: 'negative' }
                 ]
+            },
+            {
+                category: 'travel',
+                prompts: [
+                    { id: 't1', text: 'Great customer service', type: 'positive' },
+                    { id: 't2', text: 'Smooth booking process', type: 'positive' },
+                    { id: 't3', text: 'Helpful & polite staff', type: 'positive' },
+                    { id: 't4', text: 'Hassle-free holiday planning', type: 'positive' },
+                    { id: 't5', text: 'Prompt communication', type: 'positive' },
+                    { id: 't6', text: 'Highly recommended', type: 'positive' },
+                    { id: 't7', text: 'Could be faster', type: 'negative' },
+                    { id: 't8', text: 'Booking delayed', type: 'negative' }
+                ]
             }
         ];
 
@@ -179,34 +192,76 @@ async function initDB() {
             db.prepare('INSERT INTO category_prompts (category, prompts_json) VALUES (?, ?)').run(c.category, JSON.stringify(c.prompts));
         }
         console.log('Seeded category prompts.');
+    } else {
+        // Ensure travel prompts exist
+        try {
+            const hasTravel = db.prepare('SELECT id FROM category_prompts WHERE category = ?').get('travel');
+            if (!hasTravel) {
+                const travelPrompts = [
+                    { id: 't1', text: 'Great customer service', type: 'positive' },
+                    { id: 't2', text: 'Smooth booking process', type: 'positive' },
+                    { id: 't3', text: 'Helpful & polite staff', type: 'positive' },
+                    { id: 't4', text: 'Hassle-free holiday planning', type: 'positive' },
+                    { id: 't5', text: 'Prompt communication', type: 'positive' },
+                    { id: 't6', text: 'Highly recommended', type: 'positive' },
+                    { id: 't7', text: 'Could be faster', type: 'negative' },
+                    { id: 't8', text: 'Booking delayed', type: 'negative' }
+                ];
+                db.prepare('INSERT INTO category_prompts (category, prompts_json) VALUES (?, ?)').run('travel', JSON.stringify(travelPrompts));
+            }
+        } catch (_) {}
     }
 
-    // Ensure MadVerse brand and location are seeded
+    // Automatic migration to Trident Net Holidays & MadVerse
     try {
-        const existingBiz = db.prepare('SELECT * FROM businesses LIMIT 1').get();
-        if (!existingBiz) {
-            const bizId = '09bb176e-a2b0-422c-afc8-2a0c3495ecbf';
-            db.prepare(`INSERT INTO businesses (id, name, category, logo_url, primary_color, secondary_color, tone) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-                bizId,
-                'MadVerse',
-                'creative_studio',
-                '/logo.png',
-                '#0D9488',
-                '#D97706',
-                'creative & inspiring'
-            );
+        const acmeBiz = db.prepare("SELECT * FROM businesses WHERE name = 'Acme Coffee' LIMIT 1").get();
+        if (acmeBiz) {
+            db.prepare(`UPDATE businesses 
+                        SET name = 'MadVerse', category = 'travel', logo_url = '/logo.png', 
+                            primary_color = '#0D9488', secondary_color = '#D97706', tone = 'helpful & friendly'
+                        WHERE id = ?`).run(acmeBiz.id);
+            console.log('Migrated legacy Acme Coffee business to MadVerse / Trident Net Holidays.');
+        }
+
+        const legacyLoc = db.prepare("SELECT * FROM locations WHERE name = 'Downtown Branch' OR google_review_link LIKE '%acme%' LIMIT 1").get();
+        if (legacyLoc) {
+            db.prepare(`UPDATE locations 
+                        SET name = 'Trident Net Holidays', 
+                            address = '3rd Floor, Hari Om Chamber, B/46, New Link Rd, Veera Desai Industrial Estate, Andheri West, Mumbai, Maharashtra 400053',
+                            google_review_link = 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai',
+                            is_active = 1
+                        WHERE id = ?`).run(legacyLoc.id);
+            console.log('Migrated legacy Downtown Branch to Trident Net Holidays.');
+        }
+
+        // Ensure at least one active location exists
+        const anyLoc = db.prepare("SELECT * FROM locations LIMIT 1").get();
+        if (!anyLoc) {
+            const biz = db.prepare("SELECT id FROM businesses LIMIT 1").get();
+            const bizId = biz ? biz.id : '09bb176e-a2b0-422c-afc8-2a0c3495ecbf';
+            if (!biz) {
+                db.prepare(`INSERT INTO businesses (id, name, category, logo_url, primary_color, secondary_color, tone) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+                    bizId,
+                    'MadVerse',
+                    'travel',
+                    '/logo.png',
+                    '#0D9488',
+                    '#D97706',
+                    'helpful & friendly'
+                );
+            }
             db.prepare(`INSERT INTO locations (id, business_id, name, address, google_review_link, is_active, qr_code_url)
                         VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
                 'ef9b1224-1b18-4137-825d-0693d8dcd72f',
                 bizId,
-                'MadVerse Experience Studio',
-                '108 Artisan Boulevard, Innovation Quarter',
-                'https://g.page/r/madverse/review',
+                'Trident Net Holidays',
+                '3rd Floor, Hari Om Chamber, B/46, New Link Rd, Veera Desai Industrial Estate, Andheri West, Mumbai, Maharashtra 400053',
+                'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai',
                 1,
-                'http://localhost:5173/review/ef9b1224-1b18-4137-825d-0693d8dcd72f'
+                'https://madverse-l7jo.onrender.com/review/ef9b1224-1b18-4137-825d-0693d8dcd72f'
             );
-            console.log('Seeded MadVerse brand and location.');
+            console.log('Seeded Trident Net Holidays location.');
         }
     } catch (e) {
         console.error('MadVerse seed error:', e.message);
