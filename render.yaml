@@ -3,7 +3,7 @@ services:
     name: madverse
     runtime: node
     plan: free
-    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install
+    buildCommand: cd backend && npm install
     startCommand: node backend/server.js
     healthCheckPath: /health
     autoDeploy: true
