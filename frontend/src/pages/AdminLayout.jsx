@@ -18,6 +18,7 @@ const AdminLayout = () => {
 
   const navItems = [
     { name: 'Analytics & Funnel', path: '/admin/dashboard', icon: BarChart3 },
+    { name: 'AI Review Hub', path: '/admin/dashboard/ai-hub', icon: Sparkles },
     { name: 'Locations & QR Merch', path: '/admin/dashboard/locations', icon: Store },
     { name: 'Brand & AI Voice', path: '/admin/dashboard/settings', icon: Settings },
   ];

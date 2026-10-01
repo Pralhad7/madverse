@@ -51,6 +51,7 @@ async function start() {
     app.use('/api/qr', require('./routes/qr'));
     app.use('/api/drafts', require('./routes/drafts'));
     app.use('/api/analytics', require('./routes/analytics'));
+    app.use('/api/feedback', require('./routes/feedback'));
 
     // Serve static frontend bundle
     const possibleDistPaths = [

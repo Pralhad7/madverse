@@ -127,4 +127,22 @@ router.post('/generate', draftLimiter, async (req, res) => {
     }
 });
 
+// AI Google Review Reply Generator for Small Business Owners
+router.post('/reply', async (req, res) => {
+    try {
+        const { reviewText, starRating = 5, businessName = 'Trident Net Holidays', locationName = 'Mumbai' } = req.body;
+        const { generateOwnerReplies } = require('../services/ai');
+        const replies = await generateOwnerReplies({
+            businessName,
+            locationName,
+            customerReview: reviewText,
+            starRating: Number(starRating) || 5
+        });
+        res.json({ replies });
+    } catch (error) {
+        console.error('Reply generation error:', error);
+        res.status(500).json({ error: 'Failed to generate replies' });
+    }
+});
+
 module.exports = router;

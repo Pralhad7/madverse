@@ -48,3 +48,15 @@ CREATE TABLE IF NOT EXISTS category_prompts (
     category TEXT NOT NULL,
     prompts_json TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS private_feedbacks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    location_id TEXT NOT NULL,
+    rating INTEGER NOT NULL,
+    customer_name TEXT,
+    customer_contact TEXT,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(location_id) REFERENCES locations(id) ON DELETE CASCADE
+);

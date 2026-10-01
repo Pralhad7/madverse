@@ -9,7 +9,9 @@ import PhysicalMerchStudio from '../components/PhysicalMerchStudio';
 import { 
   Plus, BarChart3, QrCode, Star, MousePointerClick, Loader2, 
   ExternalLink, Sparkles, ShieldCheck, CheckCircle2, RefreshCw, 
-  Building2, Palette, Globe, Sliders, AlertTriangle
+  Building2, Palette, Globe, Sliders, AlertTriangle,
+  MessageSquare, Copy, Check, HeartHandshake, Phone, Mail, 
+  ArrowRight, Lightbulb, TrendingUp, ThumbsUp, Send, CheckCircle, Shield
 } from 'lucide-react';
 
 // ─────────────────────────── Overview Tab ───────────────────────────
@@ -660,11 +662,643 @@ const Settings = () => {
   );
 };
 
+// ─────────────────────────── AI Google Review Hub ───────────────────────────
+const AIReviewHub = () => {
+  const { apiFetch } = useAuth();
+  const [activeTab, setActiveTab] = useState('reply'); // 'reply' | 'inbox' | 'playbook'
+  const [locations, setLocations] = useState([]);
+  
+  // Reply Generator State
+  const [starRating, setStarRating] = useState(5);
+  const [reviewInput, setReviewInput] = useState('');
+  const [generatingReplies, setGeneratingReplies] = useState(false);
+  const [generatedReplies, setGeneratedReplies] = useState(null);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+
+  // Private Inbox State
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
+  const [resolvingId, setResolvingId] = useState(null);
+
+  useEffect(() => {
+    apiFetch('/api/locations')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setLocations(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const primaryLoc = locations[0] || {};
+  const businessName = primaryLoc.name || 'Trident Net Holidays';
+  const locationName = primaryLoc.city || 'Mumbai';
+  const googleReviewLink = primaryLoc.google_review_link || 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai';
+
+  useEffect(() => {
+    if (activeTab === 'inbox') {
+      loadFeedbacks();
+    }
+  }, [activeTab]);
+
+  const loadFeedbacks = () => {
+    setLoadingFeedbacks(true);
+    apiFetch('/api/feedback/private')
+      .then(res => res.json())
+      .then(data => {
+        setFeedbacks(Array.isArray(data) ? data : []);
+        setLoadingFeedbacks(false);
+      })
+      .catch(() => setLoadingFeedbacks(false));
+  };
+
+  const handleGenerateReplies = async (customText, customRating) => {
+    const text = customText !== undefined ? customText : reviewInput;
+    const rating = customRating !== undefined ? customRating : starRating;
+    if (!text || !text.trim()) return;
+
+    setGeneratingReplies(true);
+    setGeneratedReplies(null);
+
+    try {
+      const res = await apiFetch('/api/drafts/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviewText: text,
+          starRating: rating,
+          businessName,
+          locationName
+        })
+      });
+      const data = await res.json();
+      if (data.replies && Array.isArray(data.replies)) {
+        setGeneratedReplies(data.replies);
+      }
+    } catch (err) {
+      console.error('Failed to generate replies:', err);
+    } finally {
+      setGeneratingReplies(false);
+    }
+  };
+
+  const handleCopyReply = (text, idx) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(idx);
+    setTimeout(() => setCopiedIndex(null), 2500);
+  };
+
+  const handleUpdateStatus = async (id, newStatus) => {
+    setResolvingId(id);
+    try {
+      await apiFetch(`/api/feedback/private/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, status: newStatus } : f));
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const sampleReviews = [
+    {
+      label: '🌴 5★ Bali Holiday',
+      rating: 5,
+      text: 'Had an amazing 6-day family holiday in Bali organized by Trident Net Holidays. Everything was seamless from flight tickets to private villa!'
+    },
+    {
+      label: '✈️ 5★ Dubai Visa & Flights',
+      rating: 5,
+      text: 'Super fast Dubai visa assistance and great flight rates from Mumbai. Highly recommend Trident Net Holidays for corporate trips!'
+    },
+    {
+      label: '🏔️ 4★ Manali Tour Package',
+      rating: 4,
+      text: 'Great sightseeing experience in Manali. The hotel view was stunning, though transport had a minor delay on the first morning.'
+    },
+    {
+      label: '💬 2★ Flight Reschedule Issue',
+      rating: 2,
+      text: 'Airline changed our flight schedule and it took longer than expected to get the revised itinerary.'
+    }
+  ];
+
+  const pendingFeedbacksCount = feedbacks.filter(f => f.status === 'pending').length;
+
+  return (
+    <div className="space-y-8">
+      {/* Top Banner */}
+      <div className="bg-gradient-to-r from-teal-800 via-teal-900 to-[#2B1810] text-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-teal-950/20 border border-teal-700/30 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/15 text-white backdrop-blur-xs mb-2">
+            <Sparkles size={12} className="text-amber-300" /> AI Review Growth Suite
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight">AI Google Review Hub</h2>
+          <p className="text-sm text-teal-100/90 mt-1 max-w-xl">
+            Everything your small business needs to dominate Google Maps: reply to customer reviews in 1-tap, resolve complaints privately, and rank higher on Google Local 3-Pack.
+          </p>
+        </div>
+
+        <a
+          href={googleReviewLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-teal-950 font-black text-xs sm:text-sm shadow-lg shadow-amber-400/20 transition-all shrink-0 hover:scale-[1.02]"
+        >
+          <span>Open Google Business Profile</span>
+          <ExternalLink size={16} />
+        </a>
+      </div>
+
+      {/* Hub Navigation Tabs */}
+      <div className="flex border-b border-amber-900/10 gap-2 sm:gap-4 overflow-x-auto pb-1">
+        <button
+          onClick={() => setActiveTab('reply')}
+          className={`flex items-center gap-2 py-3 px-4 font-bold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 ${
+            activeTab === 'reply'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <Sparkles size={16} className={activeTab === 'reply' ? 'text-teal-700' : ''} />
+          <span>AI Review Responder</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('inbox')}
+          className={`flex items-center gap-2 py-3 px-4 font-bold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 relative ${
+            activeTab === 'inbox'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <HeartHandshake size={16} className={activeTab === 'inbox' ? 'text-teal-700' : ''} />
+          <span>Private Resolution Inbox</span>
+          {pendingFeedbacksCount > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black">
+              {pendingFeedbacksCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('playbook')}
+          className={`flex items-center gap-2 py-3 px-4 font-bold text-xs sm:text-sm rounded-t-xl transition-all border-b-2 ${
+            activeTab === 'playbook'
+              ? 'border-teal-700 text-teal-800 bg-teal-50/60'
+              : 'border-transparent text-madverse-espresso-500 hover:text-madverse-espresso'
+          }`}
+        >
+          <TrendingUp size={16} className={activeTab === 'playbook' ? 'text-teal-700' : ''} />
+          <span>Local SEO 3-Pack Playbook</span>
+        </button>
+      </div>
+
+      {/* ─────────────────────────── TAB 1: AI REVIEW RESPONDER ─────────────────────────── */}
+      {activeTab === 'reply' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-900/10 shadow-sm space-y-6">
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-madverse-espresso">
+                Generate SEO-Boosted Google Review Replies
+              </h3>
+              <p className="text-xs text-madverse-espresso-500 mt-1">
+                Google ranks businesses higher when you reply quickly. Paste any review you received on Google Maps to get 3 ready-to-post responses tailored for {businessName}.
+              </p>
+            </div>
+
+            {/* Step 1: Star Rating */}
+            <div>
+              <label className="block text-xs font-bold text-madverse-espresso-600 mb-2">
+                1. Star Rating Received
+              </label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setStarRating(star)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
+                      starRating === star
+                        ? 'bg-amber-100/80 border-amber-300 text-amber-900 shadow-xs'
+                        : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'
+                    }`}
+                  >
+                    <Star size={14} className={starRating >= star ? 'fill-amber-400 text-amber-400' : 'text-stone-300'} />
+                    <span>{star} {star === 1 ? 'Star' : 'Stars'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 2: Customer Review Text */}
+            <div>
+              <label className="block text-xs font-bold text-madverse-espresso-600 mb-2">
+                2. Customer's Review
+              </label>
+              <textarea
+                value={reviewInput}
+                onChange={(e) => setReviewInput(e.target.value)}
+                placeholder="Paste the customer's Google review here, e.g.: 'Had a wonderful tour package to Kerala arranged by Trident Net Holidays. Very punctual service!'"
+                rows={3}
+                className="w-full px-4 py-3 rounded-2xl border border-amber-900/15 text-xs sm:text-sm focus:border-teal-600 focus:ring-1 focus:ring-teal-600 outline-none resize-none bg-[#FAF6F0]/30"
+              />
+
+              {/* Sample Test Prompts */}
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-madverse-espresso-400 flex items-center gap-1">
+                  <Lightbulb size={12} className="text-amber-500" /> Quick test samples:
+                </span>
+                {sampleReviews.map((sample, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setStarRating(sample.rating);
+                      setReviewInput(sample.text);
+                      handleGenerateReplies(sample.text, sample.rating);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-teal-50 hover:text-teal-800 text-[11px] font-semibold text-stone-600 transition"
+                  >
+                    {sample.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Generate CTA Button */}
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-[11px] text-stone-400">
+                Powered by Google Gemini AI · Optimized for Mumbai Local SEO
+              </span>
+
+              <button
+                type="button"
+                disabled={generatingReplies || !reviewInput.trim()}
+                onClick={() => handleGenerateReplies()}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md shadow-teal-800/20 transition-all hover:scale-[1.01]"
+              >
+                {generatingReplies ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Writing 3 SEO Responses...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} className="text-amber-300" />
+                    <span>Generate AI Responses</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Generated Responses Display */}
+          {generatedReplies && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-xs font-black uppercase tracking-wider text-madverse-espresso-500">
+                  Ready-to-Post Replies (Select & Copy)
+                </h4>
+                <span className="text-xs text-teal-700 font-bold flex items-center gap-1">
+                  <CheckCircle size={14} /> 3 Personalized Styles Created
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {generatedReplies.map((reply, idx) => {
+                  const isCopied = copiedIndex === idx;
+                  const isSEO = reply.tone === 'Local SEO Boosted' || reply.badge === 'Google Maps SEO' || reply.badge === 'Local SEO Boosted';
+                  const isWarm = reply.tone === 'Warm & Grateful' || reply.badge === 'High Loyalty' || reply.badge === 'Warm & Grateful';
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`bg-white rounded-3xl p-5 border flex flex-col justify-between transition-all ${
+                        isSEO 
+                          ? 'border-teal-400/80 shadow-md shadow-teal-700/10 ring-1 ring-teal-400/40' 
+                          : 'border-amber-900/10 shadow-sm'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            isSEO 
+                              ? 'bg-teal-100 text-teal-900' 
+                              : isWarm 
+                                ? 'bg-amber-100 text-amber-900' 
+                                : 'bg-slate-100 text-slate-800'
+                          }`}>
+                            {reply.tone || reply.badge || reply.style}
+                          </span>
+
+                          {isSEO && (
+                            <span className="text-[10px] font-bold text-teal-700 flex items-center gap-0.5">
+                              <TrendingUp size={11} /> High SEO Value
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs sm:text-sm text-madverse-espresso leading-relaxed whitespace-pre-wrap font-medium">
+                          "{reply.text}"
+                        </p>
+                      </div>
+
+                      <div className="pt-4 mt-4 border-t border-stone-100 flex items-center justify-between">
+                        <span className="text-[11px] text-stone-400 font-mono">
+                          {reply.text.length} chars
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCopyReply(reply.text, idx)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            isCopied
+                              ? 'bg-teal-600 text-white shadow-xs'
+                              : 'bg-stone-100 hover:bg-stone-200 text-stone-800'
+                          }`}
+                        >
+                          {isCopied ? (
+                            <>
+                              <Check size={13} />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={13} />
+                              <span>Copy Reply</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action Banner to Google */}
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-amber-900 font-bold">
+                  <ExternalLink size={16} className="text-amber-700 shrink-0" />
+                  <span>Next Step: Paste this response on Google Business Profile to show active customer care.</span>
+                </div>
+                <a
+                  href={googleReviewLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold shrink-0 text-center transition"
+                >
+                  Open Google Maps Reviews
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────── TAB 2: PRIVATE RESOLUTION INBOX ─────────────────────────── */}
+      {activeTab === 'inbox' && (
+        <div className="space-y-6">
+          {/* Information Notice */}
+          <div className="bg-teal-50/80 border border-teal-200/80 rounded-3xl p-5 sm:p-6 text-xs text-teal-900 space-y-2">
+            <div className="flex items-center gap-2 font-black text-sm">
+              <ShieldCheck size={18} className="text-teal-700" />
+              <span>Google Anti-Gating Protection & Direct Owner Care</span>
+            </div>
+            <p className="leading-relaxed text-teal-800/90">
+              When customers give 1 to 3 stars on your Express QR scanner, our platform offers them a direct private channel to message management. 
+              This allows you to resolve grievances promptly before they turn into public 1-star Google reviews, while keeping you 100% compliant with Google's Anti-Gating policies.
+            </p>
+          </div>
+
+          {/* Feedback List */}
+          {loadingFeedbacks ? (
+            <div className="flex flex-col items-center justify-center py-16 text-stone-400">
+              <Loader2 size={28} className="animate-spin text-teal-700 mb-2" />
+              <p className="text-xs font-semibold">Loading private customer resolutions...</p>
+            </div>
+          ) : feedbacks.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-amber-900/10 shadow-sm space-y-3">
+              <div className="w-14 h-14 bg-teal-50 text-teal-700 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 size={28} />
+              </div>
+              <h4 className="text-base font-black text-madverse-espresso">Inbox Zero: No Private Complaints!</h4>
+              <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                Any private notes or concerns sent by customers who rated 1–3 stars will appear here so you can call or message them right away.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-xs font-black uppercase tracking-wider text-madverse-espresso-500">
+                  Customer Concerns ({feedbacks.length})
+                </h4>
+                <button
+                  onClick={loadFeedbacks}
+                  className="flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-800"
+                >
+                  <RefreshCw size={12} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {feedbacks.map((fb) => {
+                  const isResolved = fb.status === 'resolved';
+                  const isContacted = fb.status === 'contacted';
+
+                  return (
+                    <div
+                      key={fb.id}
+                      className={`bg-white rounded-2xl p-5 border transition-all ${
+                        isResolved 
+                          ? 'border-stone-200 bg-stone-50/50 opacity-75' 
+                          : 'border-amber-900/15 shadow-sm'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3 mb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex items-center">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                size={14}
+                                className={s <= fb.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-200'}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-stone-700">
+                            {fb.customer_name ? fb.customer_name : 'Anonymous Guest'}
+                          </span>
+                          <span className="text-[11px] text-stone-400">· {fb.location_name || 'Mumbai'}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            isResolved
+                              ? 'bg-teal-100 text-teal-800'
+                              : isContacted
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-amber-100 text-amber-900'
+                          }`}>
+                            {fb.status || 'pending'}
+                          </span>
+                          <span className="text-[11px] text-stone-400">
+                            {new Date(fb.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#FAF6F0]/60 rounded-xl p-3 border border-amber-900/5 mb-3">
+                        <p className="text-xs text-madverse-espresso leading-relaxed">
+                          "{fb.message}"
+                        </p>
+                      </div>
+
+                      {/* Contact Info & Resolution Actions */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-3">
+                          {fb.customer_contact ? (
+                            <>
+                              <a
+                                href={`tel:${fb.customer_contact}`}
+                                className="inline-flex items-center gap-1 font-bold text-teal-700 hover:text-teal-900"
+                              >
+                                <Phone size={13} />
+                                <span>{fb.customer_contact}</span>
+                              </a>
+                              <a
+                                href={`mailto:${fb.customer_contact}`}
+                                className="inline-flex items-center gap-1 font-bold text-stone-600 hover:text-stone-900"
+                              >
+                                <Mail size={13} />
+                                <span>Email</span>
+                              </a>
+                            </>
+                          ) : (
+                            <span className="text-[11px] text-stone-400 italic">No phone/email provided</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {!isContacted && !isResolved && (
+                            <button
+                              type="button"
+                              disabled={resolvingId === fb.id}
+                              onClick={() => handleUpdateStatus(fb.id, 'contacted')}
+                              className="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-xs font-bold transition"
+                            >
+                              Mark Contacted
+                            </button>
+                          )}
+                          {!isResolved && (
+                            <button
+                              type="button"
+                              disabled={resolvingId === fb.id}
+                              onClick={() => handleUpdateStatus(fb.id, 'resolved')}
+                              className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1"
+                            >
+                              <Check size={12} />
+                              <span>Mark Resolved</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────── TAB 3: LOCAL SEO PLAYBOOK ─────────────────────────── */}
+      {activeTab === 'playbook' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-900/10 shadow-sm space-y-6">
+            <div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900">
+                Small Business Playbook
+              </span>
+              <h3 className="text-lg sm:text-xl font-black text-madverse-espresso mt-2">
+                How to Rank in the Google Maps Local 3-Pack
+              </h3>
+              <p className="text-xs text-madverse-espresso-500 mt-1 max-w-2xl">
+                Google's Local algorithm prioritizes three core metrics for ranking small businesses like {businessName}: 
+                <strong> Review Velocity, Review Sentiment/Keywords, and Owner Engagement</strong>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Pillar 1 */}
+              <div className="bg-[#FAF6F0]/60 rounded-2xl p-5 border border-amber-900/10 space-y-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-700 text-white flex items-center justify-center font-black text-sm">
+                  1
+                </div>
+                <h4 className="text-sm font-black text-madverse-espresso">
+                  Reply to 100% of Reviews within 24 Hours
+                </h4>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Google explicitly states that replying to customer reviews builds trust and positively influences search ranking. Use the <strong>AI Review Responder</strong> tab to draft a personalized reply in 5 seconds.
+                </p>
+              </div>
+
+              {/* Pillar 2 */}
+              <div className="bg-[#FAF6F0]/60 rounded-2xl p-5 border border-amber-900/10 space-y-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm">
+                  2
+                </div>
+                <h4 className="text-sm font-black text-madverse-espresso">
+                  Seed Target Search Keywords Naturally
+                </h4>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  When reviews or owner replies mention phrases like <em>"holiday packages in Mumbai"</em>, <em>"flight booking in Andheri"</em>, or <em>"Dubai visa service"</em>, Google associates your location with those high-intent customer searches.
+                </p>
+              </div>
+
+              {/* Pillar 3 */}
+              <div className="bg-[#FAF6F0]/60 rounded-2xl p-5 border border-amber-900/10 space-y-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-900 text-white flex items-center justify-center font-black text-sm">
+                  3
+                </div>
+                <h4 className="text-sm font-black text-madverse-espresso">
+                  Place QR Counter Stands at Checkout
+                </h4>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  85% of reviews are lost when asked via email days later. Placing a physical QR stand on your reception desk lets customers scan right when they are happiest and waiting for documents.
+                </p>
+              </div>
+
+              {/* Pillar 4 */}
+              <div className="bg-[#FAF6F0]/60 rounded-2xl p-5 border border-amber-900/10 space-y-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-sm">
+                  4
+                </div>
+                <h4 className="text-sm font-black text-madverse-espresso">
+                  Stay 100% Google Anti-Gating Compliant
+                </h4>
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  Google bans businesses that block negative reviews. Our platform protects you legitimately: all customers can reach Google, while offering unsatisfied clients an instant direct line to you first.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─────────────────────────── Main Dashboard Router ───────────────────────────
 const AdminDashboard = () => {
   return (
     <Routes>
       <Route path="/" element={<Overview />} />
+      <Route path="ai-hub" element={<AIReviewHub />} />
       <Route path="locations" element={<Locations />} />
       <Route path="settings" element={<Settings />} />
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

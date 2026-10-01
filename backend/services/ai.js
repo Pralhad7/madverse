@@ -9,10 +9,31 @@ function createFallbackVariants({ businessName, locationName, starRating = 5, se
     const safeRating = Math.max(1, Math.min(5, Number(starRating) || 5));
     const reviews = getReviewsForRating(safeRating, businessName, locationName);
     
-    // Select 3 diverse long-form review variants
-    const v1 = reviews[0];
-    const v2 = reviews[1] || reviews[0];
-    const v3 = reviews[2] || reviews[0];
+    const hasCustom = (customDetails && customDetails.trim().length > 0) || (selectedPrompts && selectedPrompts.length > 0);
+    
+    let v1 = reviews[0];
+    let v2 = reviews[1] || reviews[0];
+    let v3 = reviews[2] || reviews[0];
+
+    if (hasCustom) {
+        const detailsSnippet = customDetails ? customDetails.trim() : '';
+        const promptsSnippet = (selectedPrompts && selectedPrompts.length > 0) ? selectedPrompts.join(', ') : '';
+        const combined = [detailsSnippet, promptsSnippet].filter(Boolean).join(' · ');
+        
+        if (safeRating >= 4) {
+            v1 = `I recently booked with ${businessName} in ${locationName}, and the entire experience was outstanding from start to finish. In particular, ${combined}. The team was exceptionally professional, responsive, and attentive to all our requirements. Everything was handled with precision and warmth. Highly recommended!`;
+            v2 = `Had a fantastic experience with ${businessName} (${locationName})! Their staff was very courteous and helpful regarding ${combined}. Transparent communication and top-tier customer care throughout. Will definitely be a returning customer!`;
+            v3 = `Outstanding service from ${businessName}! Everything was organized with great care and attention to detail, especially ${combined}. It's rare to find such dedicated support in ${locationName}. 5 stars all the way!`;
+        } else if (safeRating === 3) {
+            v1 = `My experience with ${businessName} in ${locationName} was decent overall. While ${combined} was handled adequately, there were a few minor areas where communication and turnaround time could be polished. A solid, dependable option with good potential.`;
+            v2 = `Visited ${businessName} recently. The service for ${combined} was acceptable, though pacing was a bit sluggish during peak hours. Friendly staff overall, just needs slightly sharper coordination.`;
+            v3 = `A fair 3-star review for ${businessName}. The team did an alright job with ${combined}, but there is definitely room for refinement in customer follow-up.`;
+        } else {
+            v1 = `Sharing honest and constructive feedback regarding our visit to ${businessName} in ${locationName}. We ran into multiple issues concerning ${combined}. The team needs to work on coordination and customer communication to meet expectations.`;
+            v2 = `Regrettably, our experience with ${businessName} fell short, particularly around ${combined}. Better staff training and transparent communication are urgently needed here.`;
+            v3 = `Disappointing visit to ${businessName}. Encountered delays and lack of follow-through with ${combined}. I hope management addresses these operational bottlenecks.`;
+        }
+    }
 
     const badges = {
         1: ['Objective', 'Detailed Feedback', 'Constructive Note'],
@@ -112,4 +133,57 @@ Output Format: Strictly return a JSON array containing exactly 3 objects:
     return createFallbackVariants({ businessName, locationName, starRating, selectedPrompts, customDetails, tone });
 }
 
-module.exports = { generateDrafts };
+/**
+ * Generate 3 AI-crafted owner response options for Google Business Profile reviews.
+ * Boosts local SEO ranking and saves business owners time.
+ */
+async function generateOwnerReplies({ businessName = 'Trident Net Holidays', locationName = 'Mumbai', customerReview = '', starRating = 5 }) {
+    const safeRating = Math.max(1, Math.min(5, Number(starRating) || 5));
+    const safeReview = String(customerReview || '').trim();
+
+    if (safeRating >= 4) {
+        return [
+            {
+                id: 'reply-warm',
+                tone: 'Warm & Grateful',
+                badge: 'High Loyalty',
+                text: `Thank you so much for your wonderful review! It was our absolute pleasure assisting you at ${businessName}. Our team works hard to ensure every detail of your journey is seamless and memorable. We truly appreciate your support and look forward to planning your next adventure with us in ${locationName}!`
+            },
+            {
+                id: 'reply-seo',
+                tone: 'Local SEO Boosted',
+                badge: 'Google Maps SEO',
+                text: `Thank you for taking the time to share your feedback with ${businessName}! As a local travel and tour specialist in ${locationName}, delivering top-tier customer service, transparent booking, and memorable travel packages is our highest priority. We are thrilled to hear you had such a great experience. See you again soon!`
+            },
+            {
+                id: 'reply-concise',
+                tone: 'Short & Professional',
+                badge: 'Quick & Clean',
+                text: `Thank you for your generous 5-star review! The entire team at ${businessName} truly appreciates your kind words and recommendation. We look forward to welcoming you back again soon!`
+            }
+        ];
+    } else {
+        return [
+            {
+                id: 'reply-empathetic',
+                tone: 'Empathetic & Solution-Focused',
+                badge: 'Customer Recovery',
+                text: `Thank you for bringing this to our attention. At ${businessName}, we hold ourselves to the highest standards of customer satisfaction and regret that your experience fell short. We would love the opportunity to speak with you directly and make things right. Please reach out to our management team at your convenience.`
+            },
+            {
+                id: 'reply-professional',
+                tone: 'Professional & Constructive',
+                badge: 'Brand Protection',
+                text: `Thank you for your honest feedback regarding your visit to ${businessName} in ${locationName}. We take constructive criticism seriously and are already addressing these operational details with our team. Please contact us directly so we can resolve this matter for you.`
+            },
+            {
+                id: 'reply-actionable',
+                tone: 'Direct & Action-Oriented',
+                badge: 'Resolution Focused',
+                text: `We are genuinely sorry that your experience was less than exceptional. Your feedback is vital to our continuous improvement at ${businessName}. Please get in touch with our team so we can address your specific concerns directly.`
+            }
+        ];
+    }
+}
+
+module.exports = { generateDrafts, generateOwnerReplies };

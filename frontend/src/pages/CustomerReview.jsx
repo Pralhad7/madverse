@@ -8,7 +8,8 @@ import { fireConfetti } from '../utils/confetti';
 import { speakText, stopSpeaking } from '../utils/speech';
 import { 
   ExternalLink, Copy, Check, Sparkles, RefreshCw, 
-  RotateCw, CheckCircle2, HeartHandshake, Volume2, VolumeX, AlertCircle, ArrowLeft
+  RotateCw, CheckCircle2, HeartHandshake, Volume2, VolumeX, 
+  AlertCircle, ArrowLeft, Send, MessageSquare, ShieldCheck, Mail, Phone, User
 } from 'lucide-react';
 import { getReviewsForRating } from '../utils/reviewMessages';
 
@@ -18,14 +19,54 @@ export default function CustomerReview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Simple review state
+  // Review state
   const [rating, setRating] = useState(5);
   const [selectedPrompts, setSelectedPrompts] = useState([]);
+  const [customNote, setCustomNote] = useState('');
   const [editedDraft, setEditedDraft] = useState('');
   const [reviewOptionIndex, setReviewOptionIndex] = useState(0);
   const [copied, setCopied] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  // Private owner resolution state (for 1-3 stars)
+  const [showPrivateModal, setShowPrivateModal] = useState(false);
+  const [privateName, setPrivateName] = useState('');
+  const [privateContact, setPrivateContact] = useState('');
+  const [privateMessage, setPrivateMessage] = useState('');
+  const [privateSending, setPrivateSending] = useState(false);
+  const [privateSent, setPrivateSent] = useState(false);
+
+  // Helper to dynamically build review text with custom note and prompt chips
+  const synthesizeReview = (currentRating, promptsList, note, optionIdx = 0) => {
+    const bName = businessInfo?.businessName || 'Trident Net Holidays';
+    const lName = businessInfo?.locationName || 'Trident Net Holidays';
+    const safeRating = Math.max(1, Math.min(5, Number(currentRating) || 5));
+    const available = getReviewsForRating(safeRating, bName, lName);
+    const baseReview = available[optionIdx % available.length] || available[0];
+
+    const promptNames = (businessInfo?.prompts || [])
+      .filter(p => promptsList.includes(p.id))
+      .map(p => p.text);
+
+    const hasCustom = (note && note.trim().length > 0) || promptNames.length > 0;
+    if (!hasCustom) {
+      return baseReview;
+    }
+
+    const notePart = note ? note.trim() : '';
+    const promptsPart = promptNames.length > 0 ? promptNames.join(', ') : '';
+    const combined = [notePart, promptsPart].filter(Boolean).join(' · ');
+
+    if (safeRating >= 4) {
+      return `I recently booked with ${bName} in ${lName}, and the entire experience was outstanding from start to finish. In particular, ${combined}. The team was exceptionally professional, responsive, and attentive to all our requirements. Everything was handled with precision and warmth. Highly recommended!`;
+    } else if (safeRating === 3) {
+      return `My experience with ${bName} was decent overall. While ${combined} was handled adequately, there were a few minor areas where communication and turnaround time could be polished. A solid, dependable option with good potential.`;
+    } else {
+      return `Sharing honest feedback regarding our visit to ${bName} in ${lName}. We encountered delays and difficulties regarding ${combined}. I hope management addresses these operational details for future guests.`;
+    }
+  };
 
   // Fetch location information with guaranteed client fallback
   const fetchLocationData = () => {
@@ -42,7 +83,7 @@ export default function CustomerReview() {
         setBusinessInfo(data);
         setLoading(false);
 
-        // Pre-populate with a rich 5-star review
+        // Pre-populate with 5-star review
         const bName = data.businessName || 'Trident Net Holidays';
         const lName = data.locationName || 'Trident Net Holidays';
         const reviews = getReviewsForRating(5, bName, lName);
@@ -116,34 +157,72 @@ export default function CustomerReview() {
     setRating(newRating);
     setReviewOptionIndex(0);
     logEvent('rating_selected');
-
-    const bName = businessInfo?.businessName || 'Trident Net Holidays';
-    const lName = businessInfo?.locationName || 'Trident Net Holidays';
-    const available = getReviewsForRating(newRating, bName, lName);
-    if (available && available.length > 0) {
-      setEditedDraft(available[0]);
-    }
+    const text = synthesizeReview(newRating, selectedPrompts, customNote, 0);
+    setEditedDraft(text);
   };
 
   // Toggle prompt chip
   const handleTogglePrompt = (promptId) => {
     logEvent('prompt_toggled');
-    setSelectedPrompts(prev => {
-      const isSelected = prev.includes(promptId);
-      const updated = isSelected ? prev.filter(id => id !== promptId) : [...prev, promptId];
-      return updated;
-    });
+    playTapSound(600);
+    const updated = selectedPrompts.includes(promptId)
+      ? selectedPrompts.filter(id => id !== promptId)
+      : [...selectedPrompts, promptId];
+    setSelectedPrompts(updated);
+    const text = synthesizeReview(rating, updated, customNote, reviewOptionIndex);
+    setEditedDraft(text);
+  };
+
+  // AI Enhance button triggered by user
+  const handleAiEnhance = async () => {
+    playTapSound(750);
+    setIsAiGenerating(true);
+    logEvent('draft_generated');
+
+    const promptTexts = (businessInfo?.prompts || [])
+      .filter(p => selectedPrompts.includes(p.id))
+      .map(p => p.text);
+
+    const targetLocId = businessInfo?.locationId || locationId || 'default';
+
+    try {
+      const res = await fetch('/api/drafts/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: targetLocId,
+          starRating: rating || 5,
+          selectedPrompts: promptTexts,
+          language: 'en',
+          customDetails: customNote
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.drafts) && data.drafts.length > 0) {
+          setEditedDraft(data.drafts[0].text);
+          playSuccessChime();
+          setIsAiGenerating(false);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // Fallback instant synthesis
+    const localText = synthesizeReview(rating, selectedPrompts, customNote, reviewOptionIndex);
+    setEditedDraft(localText);
+    playSuccessChime();
+    setIsAiGenerating(false);
   };
 
   // Cycle to next review style
   const handleCycleReview = () => {
     playTapSound(700);
-    const bName = businessInfo?.businessName || 'Trident Net Holidays';
-    const lName = businessInfo?.locationName || 'Trident Net Holidays';
-    const available = getReviewsForRating(rating || 5, bName, lName);
-    const nextIdx = (reviewOptionIndex + 1) % available.length;
+    const nextIdx = (reviewOptionIndex + 1) % 15;
     setReviewOptionIndex(nextIdx);
-    setEditedDraft(available[nextIdx]);
+    const text = synthesizeReview(rating, selectedPrompts, customNote, nextIdx);
+    setEditedDraft(text);
   };
 
   // Audio speech synthesis
@@ -190,6 +269,33 @@ export default function CustomerReview() {
     logEvent('direct_google_fallback_clicked');
     const targetUrl = businessInfo?.googleReviewLink || 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai';
     window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  // Submit private feedback to business owner (for 1-3 star recovery)
+  const handleSubmitPrivateFeedback = async (e) => {
+    e.preventDefault();
+    if (!privateMessage.trim()) return;
+    setPrivateSending(true);
+
+    try {
+      await fetch('/api/feedback/private', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: businessInfo?.locationId || locationId || 'default',
+          rating,
+          customerName: privateName,
+          customerContact: privateContact,
+          message: privateMessage
+        })
+      });
+      setPrivateSent(true);
+      playSuccessChime();
+    } catch (err) {
+      console.error('Private feedback send error:', err);
+    } finally {
+      setPrivateSending(false);
+    }
   };
 
   if (loading) {
@@ -240,7 +346,7 @@ export default function CustomerReview() {
     <div className="min-h-screen bg-[#FAF6F0] text-slate-900 flex flex-col justify-between antialiased">
       <div className="max-w-md mx-auto w-full px-4 pt-4 sm:pt-6 pb-6">
         
-        {/* Brand Card Header */}
+        {/* Brand Header */}
         <BrandHeader 
           businessName={businessInfo?.businessName || 'Trident Net Holidays'}
           locationName={businessInfo?.locationName || 'Trident Net Holidays'}
@@ -248,7 +354,7 @@ export default function CustomerReview() {
           primaryColor={businessInfo?.primaryColor || '#0D9488'}
         />
 
-        {/* STEP A: THE SIMPLE 1-PAGE REVIEW BUILDER */}
+        {/* MAIN: THE 1-PAGE EXPRESS REVIEW BUILDER */}
         {!isSubmitted ? (
           <main className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-amber-900/10 space-y-5">
             
@@ -258,14 +364,43 @@ export default function CustomerReview() {
                 How was your experience?
               </h2>
               <p className="text-xs text-slate-500">
-                Tap your rating below:
+                Tap your rating to start:
               </p>
               <div className="pt-1">
                 <StarSelector value={rating} onChange={handleRatingChange} />
               </div>
             </div>
 
-            {/* 2. Optional Highlight Chips */}
+            {/* 2. Customer Care Box if 1-3 Stars (Protects Small Business) */}
+            {rating <= 3 && (
+              <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-xs space-y-2.5 text-left">
+                <div className="flex items-start gap-2 text-amber-900 font-bold">
+                  <HeartHandshake size={18} className="text-amber-700 shrink-0 mt-0.5" />
+                  <span>We are truly sorry your visit was not 5-star!</span>
+                </div>
+                <p className="text-amber-800 leading-relaxed">
+                  Trident Net Holidays' leadership is dedicated to your satisfaction. Would you like to message the owner privately so we can fix this immediately?
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowPrivateModal(true)}
+                    className="flex-1 py-2 px-3 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-bold text-xs shadow-xs transition"
+                  >
+                    ✉️ Message Owner Privately
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyAndOpenGoogle}
+                    className="py-2 px-3 bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl font-semibold text-xs transition"
+                  >
+                    Post on Google
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Quick Highlight Chips */}
             {businessInfo?.prompts && businessInfo.prompts.length > 0 && (
               <div className="pt-1 border-t border-slate-100">
                 <PromptChips 
@@ -276,12 +411,39 @@ export default function CustomerReview() {
               </div>
             )}
 
-            {/* 3. Pre-Crafted Editable Review */}
+            {/* 4. AI Custom Detail Input */}
+            <div className="pt-1 border-t border-slate-100 space-y-2">
+              <label className="block text-xs font-bold text-slate-700 px-1">
+                ✨ Mention anything specific? (Optional)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customNote}
+                  onChange={(e) => setCustomNote(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAiEnhance(); }}
+                  placeholder="E.g., booked Dubai trip, quick visa approval, great driver..."
+                  className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-teal-600 focus:outline-none transition"
+                />
+                <button
+                  type="button"
+                  onClick={handleAiEnhance}
+                  disabled={isAiGenerating}
+                  className="px-3.5 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 shrink-0 transition active:scale-95"
+                  title="Enhance review with AI"
+                >
+                  <Sparkles size={13} className={isAiGenerating ? 'animate-spin' : ''} />
+                  <span>{isAiGenerating ? 'Writing...' : 'AI Enhance'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 5. Pre-Crafted Editable Review */}
             <div className="space-y-2 pt-1 border-t border-slate-100">
               <div className="flex items-center justify-between text-xs px-1">
                 <span className="font-bold text-slate-800 flex items-center gap-1.5">
                   <Sparkles size={13} className="text-teal-600" />
-                  Your Suggested Review:
+                  Your AI Review (Ready to Post):
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -315,13 +477,13 @@ export default function CustomerReview() {
                   className="w-full p-3.5 text-xs sm:text-sm text-slate-800 bg-slate-50/70 border border-slate-200 rounded-2xl focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition leading-relaxed resize-none"
                 />
                 <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 mt-1">
-                  <span>You can edit or type anything you want above</span>
+                  <span className="text-teal-700 font-medium">⚡ Local SEO Boosted for Google Maps</span>
                   <span>{editedDraft ? editedDraft.trim().split(/\s+/).length : 0} words</span>
                 </div>
               </div>
             </div>
 
-            {/* 4. The 1-Tap Action Button */}
+            {/* 6. The 1-Tap Action Button */}
             <div className="pt-2 space-y-2">
               <button
                 type="button"
@@ -351,7 +513,7 @@ export default function CustomerReview() {
 
           </main>
         ) : (
-          /* STEP B: CLEAN SUCCESS & COMPLETION SCREEN */
+          /* COMPLETION SCREEN */
           <main className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-amber-900/10 text-center space-y-6">
             <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-xs">
               <CheckCircle2 size={36} className="stroke-[2.2]" />
@@ -369,8 +531,8 @@ export default function CustomerReview() {
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-600 text-left flex items-start gap-3 max-w-sm mx-auto">
               <HeartHandshake size={24} className="text-teal-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-bold text-slate-800">Quick Steps:</p>
-                <p>1. Tap the review box in Google Maps</p>
+                <p className="font-bold text-slate-800">Quick Steps on Google Maps:</p>
+                <p>1. Tap the review box</p>
                 <p>2. Select <strong>Paste</strong> to drop in your text</p>
                 <p>3. Tap <strong>Post</strong> to submit!</p>
               </div>
@@ -396,6 +558,100 @@ export default function CustomerReview() {
               </button>
             </div>
           </main>
+        )}
+
+        {/* Private Feedback Modal for 1-3 Stars */}
+        {showPrivateModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-left">
+              {!privateSent ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-1.5">
+                      <MessageSquare size={18} className="text-teal-700" />
+                      <span>Message Management</span>
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowPrivateModal(false)}
+                      className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-slate-500">
+                    Your feedback will be delivered directly to the business owner to resolve your concern.
+                  </p>
+
+                  <form onSubmit={handleSubmitPrivateFeedback} className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Your Name</label>
+                      <input
+                        type="text"
+                        value={privateName}
+                        onChange={(e) => setPrivateName(e.target.value)}
+                        placeholder="John Doe"
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-teal-600 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Phone or Email (to follow up)</label>
+                      <input
+                        type="text"
+                        value={privateContact}
+                        onChange={(e) => setPrivateContact(e.target.value)}
+                        placeholder="phone or email"
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:border-teal-600 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">What went wrong?</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={privateMessage}
+                        onChange={(e) => setPrivateMessage(e.target.value)}
+                        placeholder="Please share what happened so we can make this right..."
+                        className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:border-teal-600 focus:outline-none resize-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={privateSending}
+                      className="w-full py-2.5 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                    >
+                      <Send size={13} />
+                      <span>{privateSending ? 'Sending...' : 'Send to Owner'}</span>
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="text-center py-4 space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center">
+                    <Check size={24} />
+                  </div>
+                  <h4 className="text-base font-bold text-slate-900">Message Delivered</h4>
+                  <p className="text-xs text-slate-500">
+                    Thank you! Management has received your message and will review it immediately.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPrivateModal(false);
+                      setPrivateSent(false);
+                    }}
+                    className="w-full py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-200"
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Global Footer */}
