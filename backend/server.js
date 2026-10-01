@@ -65,8 +65,8 @@ async function start() {
         res.status(500).json({ error: 'Something broke!' });
     });
 
-    app.listen(PORT, () => {
-        console.log(`MadVerse backend running on http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`MadVerse backend running on 0.0.0.0:${PORT}`);
     });
 }
 

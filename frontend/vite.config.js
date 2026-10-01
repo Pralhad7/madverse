@@ -9,7 +9,13 @@ export default defineConfig({
     allowedHosts: true, // Allow ngrok-free.app, cloud tunnels, and custom hostnames
     cors: true,
     proxy: {
-      '/api': 'http://localhost:3001'
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      }
     }
   }
 })
