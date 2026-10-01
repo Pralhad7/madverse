@@ -3,17 +3,14 @@ import { Download, Copy, Check, Printer, Sparkles, ExternalLink, Star } from 'lu
 
 const QRCodeDisplay = ({ locationId, businessName = 'Our Business', primaryColor = '#2563eb' }) => {
   const [copied, setCopied] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState(locationId ? `/api/qr/image/${locationId}` : null);
   const [template, setTemplate] = useState('table-tent'); // 'table-tent', 'sticker', 'minimal'
   const reviewLink = `${window.location.origin}/review/${locationId}`;
 
   useEffect(() => {
-    fetch(`/api/qr/generate/${locationId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.dataUrl) setQrDataUrl(data.dataUrl);
-      })
-      .catch(() => {});
+    if (locationId) {
+      setQrDataUrl(`/api/qr/image/${locationId}`);
+    }
   }, [locationId]);
 
   const handleCopy = () => {
@@ -23,14 +20,13 @@ const QRCodeDisplay = ({ locationId, businessName = 'Our Business', primaryColor
   };
 
   const handleDownload = () => {
-    if (qrDataUrl) {
-      const a = document.createElement('a');
-      a.href = qrDataUrl;
-      a.download = `${businessName.replace(/\s+/g, '_')}_QR.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    const downloadUrl = `/api/qr/download/${locationId}`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `${businessName.replace(/\s+/g, '_')}_QR.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handlePrint = () => {

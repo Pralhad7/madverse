@@ -17,7 +17,8 @@ export default function PhysicalMerchStudio({
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const cardRef = useRef(null);
 
-  const qrUrl = `/api/qr/generate/${locationId || 'default'}`;
+  const qrUrl = locationId ? `/api/qr/image/${locationId}` : '/logo.png';
+  const qrDownloadUrl = locationId ? `/api/qr/download/${locationId}` : qrUrl;
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -268,7 +269,7 @@ export default function PhysicalMerchStudio({
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <a
-              href={qrUrl}
+              href={qrDownloadUrl}
               download={`${businessName}_QR.png`}
               className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-[#2B1810] rounded-xl text-xs font-bold transition border border-stone-200"
             >
