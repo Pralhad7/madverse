@@ -1,55 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import BrandHeader from '../components/BrandHeader';
-import ProgressBar from '../components/ProgressBar';
 import StarSelector from '../components/StarSelector';
 import PromptChips from '../components/PromptChips';
-import DraftCards from '../components/DraftCards';
-import VoiceInput from '../components/VoiceInput';
-import LiveSynthesisBar from '../components/LiveSynthesisBar';
-import StoryCanvas from '../components/StoryCanvas';
 import { playSuccessChime, playTapSound } from '../utils/sound';
 import { fireConfetti } from '../utils/confetti';
 import { speakText, stopSpeaking } from '../utils/speech';
 import { 
-  ExternalLink, Copy, RefreshCw, Check, AlertCircle, Sparkles, 
-  ShieldCheck, ArrowRight, ArrowLeft, MessageSquare, Globe2, 
-  MapPin, CheckCircle2, HeartHandshake, ThumbsUp, Volume2, VolumeX, RotateCw
+  ExternalLink, Copy, Check, Sparkles, RefreshCw, 
+  RotateCw, CheckCircle2, HeartHandshake, Volume2, VolumeX, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { getReviewsForRating } from '../utils/reviewMessages';
 
-const STEPS = ['Welcome', 'Rating', 'Details', 'Draft', 'Thank You'];
-
 export default function CustomerReview() {
   const { locationId } = useParams();
-  const [step, setStep] = useState(0);
   const [businessInfo, setBusinessInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  // Review flow state
-  const [rating, setRating] = useState(0);
+
+  // Simple review state
+  const [rating, setRating] = useState(5);
   const [selectedPrompts, setSelectedPrompts] = useState([]);
-  const [customText, setCustomText] = useState('');
-  const [drafts, setDrafts] = useState([]);
-  const [selectedDraftId, setSelectedDraftId] = useState(null);
   const [editedDraft, setEditedDraft] = useState('');
   const [reviewOptionIndex, setReviewOptionIndex] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [selectedLang, setSelectedLang] = useState('en');
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
-  const handleToggleSpeak = () => {
-    if (isSpeaking) {
-      stopSpeaking();
-      setIsSpeaking(false);
-    } else {
-      setIsSpeaking(true);
-      speakText(editedDraft, () => setIsSpeaking(false));
-    }
-  };
-
+  // Fetch location information with guaranteed client fallback
   const fetchLocationData = () => {
     setLoading(true);
     setError(null);
@@ -57,15 +35,22 @@ export default function CustomerReview() {
 
     fetch(`/api/locations/${targetLocId}/public`)
       .then(res => {
-        if (!res.ok) throw new Error('Location not found or currently inactive');
+        if (!res.ok) throw new Error('Location not found');
         return res.json();
       })
       .then(data => {
         setBusinessInfo(data);
-        if (data.language) setSelectedLang(data.language);
         setLoading(false);
 
-        // Record real QR scan telemetry (guarded per browser tab session)
+        // Pre-populate with a rich 5-star review
+        const bName = data.businessName || 'Trident Net Holidays';
+        const lName = data.locationName || 'Trident Net Holidays';
+        const reviews = getReviewsForRating(5, bName, lName);
+        if (reviews && reviews.length > 0) {
+          setEditedDraft(reviews[0]);
+        }
+
+        // Record real QR scan telemetry
         const scanSessionKey = `madverse_scan_${data.locationId || targetLocId}`;
         if (!sessionStorage.getItem(scanSessionKey)) {
           sessionStorage.setItem(scanSessionKey, 'logged');
@@ -81,8 +66,7 @@ export default function CustomerReview() {
         }
       })
       .catch(err => {
-        console.warn('Network issue fetching location, applying instant client fallback:', err);
-        // Resilient fallback for Trident Net Holidays so customers never see a broken error
+        console.warn('Using client fallback for Trident Net Holidays:', err);
         const fallbackInfo = {
           locationId: targetLocId,
           locationName: 'Trident Net Holidays',
@@ -105,6 +89,10 @@ export default function CustomerReview() {
           ]
         };
         setBusinessInfo(fallbackInfo);
+        const reviews = getReviewsForRating(5, 'Trident Net Holidays', 'Trident Net Holidays');
+        if (reviews && reviews.length > 0) {
+          setEditedDraft(reviews[0]);
+        }
         setLoading(false);
       });
   };
@@ -119,160 +107,100 @@ export default function CustomerReview() {
     fetch('/api/analytics/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locationId: activeLocId, eventType, language: selectedLang })
+      body: JSON.stringify({ locationId: activeLocId, eventType, language: 'en' })
     }).catch(() => {});
   };
 
-  const handleNext = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
-  const handleBack = () => setStep(s => Math.max(0, s - 1));
-  
-  const handleGoogleRedirect = (eventName = 'google_redirect_clicked') => {
-    logEvent(eventName);
-    if (businessInfo?.googleReviewLink) {
-      const url = String(businessInfo.googleReviewLink).trim();
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      } else {
-        console.error('Refused to open invalid or unsafe URL protocol');
-      }
-      setStep(4); // Move to thank you step
+  // Update review when rating changes
+  const handleRatingChange = (newRating) => {
+    setRating(newRating);
+    setReviewOptionIndex(0);
+    logEvent('rating_selected');
+
+    const bName = businessInfo?.businessName || 'Trident Net Holidays';
+    const lName = businessInfo?.locationName || 'Trident Net Holidays';
+    const available = getReviewsForRating(newRating, bName, lName);
+    if (available && available.length > 0) {
+      setEditedDraft(available[0]);
     }
   };
 
-  const handleCycleLongReview = () => {
+  // Toggle prompt chip
+  const handleTogglePrompt = (promptId) => {
+    logEvent('prompt_toggled');
+    setSelectedPrompts(prev => {
+      const isSelected = prev.includes(promptId);
+      const updated = isSelected ? prev.filter(id => id !== promptId) : [...prev, promptId];
+      return updated;
+    });
+  };
+
+  // Cycle to next review style
+  const handleCycleReview = () => {
     playTapSound(700);
-    const available = getReviewsForRating(
-      rating || 5, 
-      businessInfo?.businessName || 'Trident Net Holidays', 
-      businessInfo?.locationName || 'Trident Net Holidays'
-    );
+    const bName = businessInfo?.businessName || 'Trident Net Holidays';
+    const lName = businessInfo?.locationName || 'Trident Net Holidays';
+    const available = getReviewsForRating(rating || 5, bName, lName);
     const nextIdx = (reviewOptionIndex + 1) % available.length;
     setReviewOptionIndex(nextIdx);
     setEditedDraft(available[nextIdx]);
   };
 
-  // Helper to build 3 diverse, long-form handcrafted drafts for the current rating
-  const buildGuaranteedDrafts = () => {
-    const bName = businessInfo?.businessName || 'Trident Net Holidays';
-    const lName = businessInfo?.locationName || 'Trident Net Holidays';
-    const activeRating = rating || 5;
-    const longReviews = getReviewsForRating(activeRating, bName, lName);
-    return [
-      { 
-        id: '1', 
-        tone: activeRating >= 4 ? 'Warm & Enthusiastic' : activeRating === 3 ? 'Balanced Assessment' : 'Constructive & Direct', 
-        badge: 'Detailed',
-        text: longReviews[0] 
-      },
-      { 
-        id: '2', 
-        tone: activeRating >= 4 ? 'Detailed Praise' : 'Thorough Observations', 
-        badge: 'Comprehensive',
-        text: longReviews[1] || longReviews[0] 
-      },
-      { 
-        id: '3', 
-        tone: activeRating >= 4 ? 'Thoughtful Review' : 'Actionable Feedback', 
-        badge: 'Balanced',
-        text: longReviews[2] || longReviews[0] 
-      }
-    ];
-  };
-
-  // Safety guard: if user reaches step 3 and drafts is empty, automatically populate
-  useEffect(() => {
-    if (step === 3 && (!drafts || drafts.length === 0)) {
-      const guaranteed = buildGuaranteedDrafts();
-      setDrafts(guaranteed);
-      setSelectedDraftId(guaranteed[0].id);
-      setEditedDraft(guaranteed[0].text);
-    }
-  }, [step, drafts, rating, businessInfo]);
-
-  const generateDrafts = async () => {
-    setIsGenerating(true);
-    logEvent('draft_generated');
-    handleNext();
-    
-    const promptTexts = (businessInfo?.prompts || [])
-      .filter(p => selectedPrompts.includes(p.id))
-      .map(p => p.text);
-
-    const activeRating = rating || 5;
-    const targetLocId = businessInfo?.locationId || locationId || 'default';
-
-    try {
-      const res = await fetch('/api/drafts/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          locationId: targetLocId,
-          starRating: activeRating,
-          selectedPrompts: promptTexts,
-          language: selectedLang,
-          customDetails: customText
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
-      }
-
-      const data = await res.json();
-      const generatedDrafts = (data && Array.isArray(data.drafts) && data.drafts.length > 0)
-        ? data.drafts
-        : buildGuaranteedDrafts();
-
-      setDrafts(generatedDrafts);
-      setSelectedDraftId(generatedDrafts[0].id);
-      setEditedDraft(generatedDrafts[0].text);
-      playSuccessChime();
-    } catch (err) {
-      console.warn('API draft generation issue, using guaranteed local reviews:', err);
-      const fallbackList = buildGuaranteedDrafts();
-      setDrafts(fallbackList);
-      setSelectedDraftId(fallbackList[0].id);
-      setEditedDraft(fallbackList[0].text);
-      playSuccessChime();
-    } finally {
-      setIsGenerating(false);
+  // Audio speech synthesis
+  const handleToggleSpeak = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+      setIsSpeaking(false);
+    } else {
+      setIsSpeaking(true);
+      speakText(editedDraft, () => setIsSpeaking(false));
     }
   };
 
-  const handleCopy = (e) => {
+  // Primary action: Copy text and open Google Reviews
+  const handleCopyAndOpenGoogle = (e) => {
     logEvent('copy_clicked');
-    playTapSound(950, 0.08);
+    logEvent('google_redirect_clicked');
+
     if (e && e.clientX && e.clientY) {
       fireConfetti(e.clientX, e.clientY);
     } else {
       fireConfetti();
     }
-    navigator.clipboard.writeText(editedDraft);
+    playSuccessChime();
+
+    // Copy to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(editedDraft).catch(() => {});
+    }
+
     setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    setTimeout(() => setCopied(false), 3000);
+
+    // Open Google Review Link directly in new window
+    const targetUrl = businessInfo?.googleReviewLink || 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai';
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+    // Switch view to completion screen
+    setIsSubmitted(true);
   };
 
-  // Sort prompts based on rating
-  const getSortedPrompts = () => {
-    if (!businessInfo?.prompts) return [];
-    const prompts = [...businessInfo.prompts];
-    if (rating && rating <= 3) {
-      prompts.sort((a, b) => (a.type === 'negative' ? -1 : 1) - (b.type === 'negative' ? -1 : 1));
-    } else if (rating && rating >= 4) {
-      prompts.sort((a, b) => (a.type === 'positive' ? -1 : 1) - (b.type === 'positive' ? -1 : 1));
-    }
-    return prompts;
+  // Direct bypass to Google without copying
+  const handleDirectGoogleClick = () => {
+    logEvent('direct_google_fallback_clicked');
+    const targetUrl = businessInfo?.googleReviewLink || 'https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai';
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-lg border border-slate-100 flex flex-col items-center">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 animate-spin">
+      <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-lg border border-amber-900/10 flex flex-col items-center">
+          <div className="w-14 h-14 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center mb-4 animate-spin">
             <RefreshCw size={26} />
           </div>
           <h3 className="text-base font-bold text-slate-800">Connecting to Business</h3>
-          <p className="text-xs text-slate-400 mt-1">Preparing your secure review assistant...</p>
+          <p className="text-xs text-slate-400 mt-1">Preparing your review assistant...</p>
         </div>
       </div>
     );
@@ -280,443 +208,206 @@ export default function CustomerReview() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#FAF6F0] flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-lg border border-slate-100">
           <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
             <AlertCircle size={28} />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-1">Connecting to Review Assistant</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-1">Review Assistant</h2>
           <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-            Network connection took longer than usual to reach Trident Net Holidays.
+            Ready to review Trident Net Holidays!
           </p>
-          <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={fetchLocationData}
-              className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-teal-700 text-white rounded-xl text-xs font-semibold hover:bg-teal-800 transition shadow-sm"
-            >
-              <RefreshCw size={14} className="mr-1.5" /> Retry Connection
-            </button>
-            <a 
-              href="https://www.google.com/maps/search/?api=1&query=Trident+Net+Holidays+Mumbai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold hover:bg-slate-200 transition"
-            >
-              <ExternalLink size={14} className="mr-1.5" /> Review Directly on Google Maps
-            </a>
-          </div>
+          <button
+            type="button"
+            onClick={fetchLocationData}
+            className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-teal-700 text-white rounded-xl text-xs font-semibold hover:bg-teal-800 transition shadow-sm mb-2"
+          >
+            <RefreshCw size={14} className="mr-1.5" /> Start Review Assistant
+          </button>
+          <button
+            type="button"
+            onClick={handleDirectGoogleClick}
+            className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-slate-100 text-slate-800 rounded-xl text-xs font-semibold hover:bg-slate-200 transition"
+          >
+            <ExternalLink size={14} className="mr-1.5" /> Review Directly on Google Maps
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF6F0] text-madverse-espresso flex flex-col justify-between antialiased">
-      {/* Top Banner Navigation */}
-      <div className="max-w-xl mx-auto w-full px-4 pt-4 sm:pt-6">
-        {/* Language & Info bar */}
-        <div className="flex items-center justify-between text-xs text-madverse-espresso-500 mb-3 px-1">
-          <div className="flex items-center gap-1.5 font-medium text-madverse-espresso">
-            <span className="w-2 h-2 rounded-full bg-teal-500 animate-ping"></span>
-            <span>MadVerse Verified Assistant</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Globe2 size={13} className="text-madverse-espresso-400" />
-            <select
-              value={selectedLang}
-              onChange={(e) => setSelectedLang(e.target.value)}
-              className="bg-transparent border-0 text-slate-600 text-xs font-semibold focus:outline-none cursor-pointer"
-            >
-              <option value="en">English (US)</option>
-              <option value="es">Español</option>
-              <option value="fr">Français</option>
-              <option value="de">Deutsch</option>
-              <option value="hi">हिन्दी</option>
-            </select>
-          </div>
-        </div>
-
+    <div className="min-h-screen bg-[#FAF6F0] text-slate-900 flex flex-col justify-between antialiased">
+      <div className="max-w-md mx-auto w-full px-4 pt-4 sm:pt-6 pb-6">
+        
         {/* Brand Card Header */}
         <BrandHeader 
-          businessName={businessInfo.businessName}
-          locationName={businessInfo.locationName}
-          logoUrl={businessInfo.logoUrl}
-          primaryColor={businessInfo.primaryColor}
+          businessName={businessInfo?.businessName || 'Trident Net Holidays'}
+          locationName={businessInfo?.locationName || 'Trident Net Holidays'}
+          logoUrl={businessInfo?.logoUrl || '/logo.png'}
+          primaryColor={businessInfo?.primaryColor || '#0D9488'}
         />
 
-        {/* Progress bar on intermediate steps */}
-        {step < 4 && (
-          <ProgressBar currentStep={step} totalSteps={4} />
-        )}
-
-        {/* MAIN STEP PANELS */}
-        <main className="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/80">
-          
-          {/* STEP 0: Welcome Screen */}
-          {step === 0 && (
-            <div className="text-center space-y-5">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-xs border border-blue-100/80">
-                <MessageSquare size={32} className="stroke-[2.2]" />
-              </div>
-
-              <div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Share Your Real Experience
-                </h2>
-                <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-md mx-auto leading-relaxed">
-                  Your authentic review helps <strong className="text-slate-800">{businessInfo.locationName || businessInfo.businessName}</strong> serve the community better.
-                </p>
-              </div>
-
-              {/* Policy Guarantee Banner */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left flex items-start gap-3">
-                <ShieldCheck size={20} className="text-blue-600 shrink-0 mt-0.5" />
-                <div className="text-xs space-y-0.5">
-                  <p className="font-bold text-slate-900">100% Honest & Independent</p>
-                  <p className="text-slate-500 leading-normal">
-                    We never filter critical feedback or preselect your rating. You are always taken directly to the public Google Review form.
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="space-y-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    logEvent('rating_selected');
-                    handleNext();
-                  }}
-                  className="w-full py-3.5 px-5 bg-gradient-to-r from-teal-600 via-teal-700 to-amber-700 hover:from-teal-700 hover:to-amber-800 text-white rounded-2xl font-bold text-sm shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 transition-all transform active:scale-98"
-                >
-                  <Sparkles size={17} />
-                  <span>Help Me Draft an Honest Review</span>
-                  <ArrowRight size={16} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleGoogleRedirect('direct_google_fallback_clicked')}
-                  className="w-full py-3 px-5 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-semibold text-xs border border-slate-200 flex items-center justify-center gap-2 transition"
-                >
-                  <ExternalLink size={14} className="text-slate-400" />
-                  <span>I prefer to write directly on Google</span>
-                </button>
+        {/* STEP A: THE SIMPLE 1-PAGE REVIEW BUILDER */}
+        {!isSubmitted ? (
+          <main className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-amber-900/10 space-y-5">
+            
+            {/* 1. Star Rating */}
+            <div className="text-center space-y-1">
+              <h2 className="text-base sm:text-lg font-extrabold text-slate-900">
+                How was your experience?
+              </h2>
+              <p className="text-xs text-slate-500">
+                Tap your rating below:
+              </p>
+              <div className="pt-1">
+                <StarSelector value={rating} onChange={handleRatingChange} />
               </div>
             </div>
-          )}
 
-          {/* STEP 1: Star Rating Guidance */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
-                  How would you rate your visit?
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  Optional intent guidance — this shapes the tone of your draft
-                </p>
-              </div>
-
-              <StarSelector 
-                value={rating} 
-                onChange={(val) => {
-                  setRating(val);
-                  logEvent('rating_selected');
-                }} 
-              />
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="w-1/3 py-3 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition"
-                >
-                  <ArrowLeft size={14} /> Back
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="w-2/3 py-3 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-teal-700/20 flex items-center justify-center gap-1.5 transition"
-                >
-                  <span>{rating === 0 ? 'Skip to Topics' : 'Continue to Topics'}</span>
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: Add Factual Details */}
-          {step === 2 && (
-            <div className="space-y-5">
-              <div className="text-center">
-                <h3 className="text-lg sm:text-xl font-black text-madverse-espresso tracking-tight">
-                  What specifics stood out?
-                </h3>
-                <p className="text-xs text-madverse-espresso-500 mt-1">
-                  Our AI only includes facts you affirmatively choose or write.
-                </p>
-              </div>
-
-              {/* Kinetic Story Canvas & Prompts */}
-              <StoryCanvas 
-                prompts={getSortedPrompts()}
-                selectedPromptIds={selectedPrompts}
-                onTogglePrompt={(id) => {
-                  logEvent('prompt_toggled');
-                  setSelectedPrompts(prev => 
-                    prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
-                  );
-                }}
-                rating={rating}
-                businessName={businessInfo.businessName}
-              />
-
-              {/* Custom Details Field with Voice Dictation */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-madverse-espresso">
-                    Specific staff, dish, or experience notes?
-                  </label>
-                  <VoiceInput 
-                    onTranscript={(spokenText) => {
-                      logEvent('voice_dictation_used');
-                      setCustomText(prev => prev ? `${prev} ${spokenText}` : spokenText);
-                    }}
-                  />
-                </div>
-                <textarea
-                  rows={3}
-                  value={customText}
-                  onChange={(e) => setCustomText(e.target.value)}
-                  placeholder="e.g., The creative ambiance was inspiring, team was attentive even during busy hours... (or tap voice dictate above!)"
-                  className="w-full p-3.5 text-xs sm:text-sm rounded-xl border border-amber-900/15 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 outline-none transition resize-none placeholder:text-madverse-espresso-400 leading-relaxed text-madverse-espresso"
+            {/* 2. Optional Highlight Chips */}
+            {businessInfo?.prompts && businessInfo.prompts.length > 0 && (
+              <div className="pt-1 border-t border-slate-100">
+                <PromptChips 
+                  prompts={businessInfo.prompts}
+                  selectedPrompts={selectedPrompts}
+                  onToggle={handleTogglePrompt}
                 />
               </div>
+            )}
 
-              {/* Actions */}
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="w-1/3 py-3 px-4 border border-amber-900/15 hover:bg-[#FAF6F0] text-madverse-espresso rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition"
-                >
-                  <ArrowLeft size={14} /> Back
-                </button>
+            {/* 3. Pre-Crafted Editable Review */}
+            <div className="space-y-2 pt-1 border-t border-slate-100">
+              <div className="flex items-center justify-between text-xs px-1">
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-teal-600" />
+                  Your Suggested Review:
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCycleReview}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition active:scale-95"
+                    title="Click for another review style"
+                  >
+                    <RotateCw size={11} className="text-teal-700" />
+                    <span>Try Another Style</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={generateDrafts}
-                  disabled={selectedPrompts.length === 0 && customText.trim() === ''}
-                  className={`w-2/3 py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
-                    selectedPrompts.length === 0 && customText.trim() === ''
-                      ? 'bg-[#F5EFEB] text-madverse-espresso-400 cursor-not-allowed border border-amber-900/10'
-                      : 'bg-teal-700 hover:bg-teal-800 text-white shadow-md shadow-teal-700/20 active:scale-98'
-                  }`}
-                >
-                  <Sparkles size={14} />
-                  <span>Generate Review Drafts</span>
-                  <ArrowRight size={14} />
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleToggleSpeak}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 transition"
+                    title="Read review out loud"
+                  >
+                    {isSpeaking ? <VolumeX size={15} className="text-teal-600" /> : <Volume2 size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Editable Text Area */}
+              <div className="relative">
+                <textarea
+                  value={editedDraft}
+                  onChange={(e) => setEditedDraft(e.target.value)}
+                  rows={5}
+                  placeholder="Your review text appears here..."
+                  className="w-full p-3.5 text-xs sm:text-sm text-slate-800 bg-slate-50/70 border border-slate-200 rounded-2xl focus:bg-white focus:border-teal-600 focus:ring-2 focus:ring-teal-500/20 focus:outline-none transition leading-relaxed resize-none"
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-400 px-1 mt-1">
+                  <span>You can edit or type anything you want above</span>
+                  <span>{editedDraft ? editedDraft.trim().split(/\s+/).length : 0} words</span>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* STEP 3: Review & Edit Drafts */}
-          {step === 3 && (
+            {/* 4. The 1-Tap Action Button */}
+            <div className="pt-2 space-y-2">
+              <button
+                type="button"
+                onClick={handleCopyAndOpenGoogle}
+                className="w-full py-4 px-5 bg-gradient-to-r from-teal-600 to-teal-800 hover:from-teal-700 hover:to-teal-900 active:scale-98 text-white rounded-2xl font-extrabold text-sm sm:text-base shadow-lg shadow-teal-700/25 flex items-center justify-center gap-2 transition-all"
+              >
+                <Copy size={18} />
+                <span>Copy & Open Google Reviews</span>
+              </button>
+              
+              <p className="text-center text-[11px] text-slate-400">
+                Copies text & opens Google Maps review form in 1 tap
+              </p>
+            </div>
+
+            {/* Subtle Direct Option */}
+            <div className="text-center pt-1 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handleDirectGoogleClick}
+                className="text-[11px] text-slate-500 hover:text-slate-700 underline inline-flex items-center gap-1"
+              >
+                <span>Write directly on Google without suggestions</span>
+                <ExternalLink size={10} />
+              </button>
+            </div>
+
+          </main>
+        ) : (
+          /* STEP B: CLEAN SUCCESS & COMPLETION SCREEN */
+          <main className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-amber-900/10 text-center space-y-6">
+            <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-xs">
+              <CheckCircle2 size={36} className="stroke-[2.2]" />
+            </div>
+
             <div>
-              {isGenerating ? (
-                <div className="py-12 text-center space-y-4">
-                  <div className="relative w-16 h-16 mx-auto">
-                    <div className="w-16 h-16 rounded-full border-4 border-teal-100 border-t-teal-700 animate-spin"></div>
-                    <Sparkles size={20} className="absolute inset-0 m-auto text-teal-700 animate-pulse" />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-bold text-madverse-espresso">Crafting Review Variants</h4>
-                    <p className="text-xs text-madverse-espresso-400 mt-1">Grounding drafts strictly in your selected facts...</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div className="text-center">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold mb-2 border border-teal-200/60">
-                      <Sparkles size={13} className="text-teal-600" />
-                      AI Suggestions Ready
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
-                      Pick a draft & make it yours
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      You can edit every word before copying to Google.
-                    </p>
-                  </div>
-
-                  {/* Draft Variant Selector or Active Editor */}
-                  {!selectedDraftId ? (
-                    <DraftCards 
-                      drafts={drafts}
-                      selectedDraft={selectedDraftId}
-                      onSelect={(id, text) => {
-                        setSelectedDraftId(id);
-                        setEditedDraft(text);
-                      }}
-                    />
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Active Textarea */}
-                      <div className="relative">
-                        <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5 px-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-700">Editable Review Draft:</span>
-                            <button
-                              type="button"
-                              onClick={handleCycleLongReview}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition active:scale-95"
-                              title="Cycle through 12-15 detailed review suggestions"
-                            >
-                              <RotateCw size={10} className="text-teal-700" />
-                              <span>Option {reviewOptionIndex + 1} of 15</span>
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={handleToggleSpeak}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition ${
-                                isSpeaking 
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse' 
-                                  : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
-                              }`}
-                              title="Listen to draft read aloud"
-                            >
-                              {isSpeaking ? <VolumeX size={12} /> : <Volume2 size={12} />}
-                              <span>{isSpeaking ? 'Stop Voice' : 'Listen'}</span>
-                            </button>
-                            <span className="font-mono text-[11px] text-slate-400">
-                              {editedDraft ? editedDraft.trim().split(/\s+/).length : 0} words
-                            </span>
-                          </div>
-                        </div>
-                        <textarea
-                          rows={5}
-                          value={editedDraft}
-                          onChange={(e) => setEditedDraft(e.target.value)}
-                          className="w-full p-4 text-xs sm:text-sm rounded-2xl border-2 border-blue-500/80 bg-blue-50/10 focus:ring-4 focus:ring-blue-100 outline-none transition leading-relaxed font-sans"
-                        />
-                      </div>
-
-                      {/* Primary Actions: Copy & Go to Google */}
-                      <div className="space-y-2">
-                        <button
-                          type="button"
-                          onClick={handleCopy}
-                          className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition active:scale-98"
-                        >
-                          {copied ? (
-                            <>
-                              <Check size={16} className="text-emerald-400 stroke-[3]" />
-                              <span className="text-emerald-300">Draft Copied to Clipboard!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={16} />
-                              <span>1. Copy Draft to Clipboard</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleGoogleRedirect('google_redirect_clicked')}
-                          className="w-full py-3.5 px-5 bg-gradient-to-r from-teal-600 via-teal-700 to-amber-700 hover:from-teal-700 hover:to-amber-800 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 transition active:scale-98"
-                        >
-                          <span>2. Open Google Review Form</span>
-                          <ExternalLink size={16} />
-                        </button>
-                      </div>
-
-                      {/* Change draft variant */}
-                      <div className="flex items-center justify-between pt-2 text-xs border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDraftId(null)}
-                          className="text-teal-700 hover:text-teal-800 font-bold"
-                        >
-                          ← Choose a different style
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStep(1);
-                            setSelectedDraftId(null);
-                          }}
-                          className="text-slate-400 hover:text-slate-600"
-                        >
-                          Start Over
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                Review Copied!
+              </h3>
+              <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-xs mx-auto leading-relaxed">
+                Google Reviews is opening in your browser. Just paste your review and tap <strong>Post</strong>!
+              </p>
             </div>
-          )}
 
-          {/* STEP 4: Thank You Screen */}
-          {step === 4 && (
-            <div className="text-center py-6 space-y-5">
-              <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
-                <CheckCircle2 size={36} className="stroke-[2.2]" />
-              </div>
-
-              <div>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                  Thank You for Your Feedback!
-                </h3>
-                <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-sm mx-auto leading-relaxed">
-                  Your honest words give genuine guidance to neighbors and help local teams continually improve.
-                </p>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-600 text-left flex items-center gap-3 max-w-sm mx-auto">
-                <HeartHandshake size={24} className="text-blue-600 shrink-0" />
-                <span>Google Reviews are published directly under your Google Account with full customer control.</span>
-              </div>
-
-              <div className="pt-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep(0);
-                    setSelectedDraftId(null);
-                    setDrafts([]);
-                    setSelectedPrompts([]);
-                    setCustomText('');
-                    setRating(0);
-                  }}
-                  className="py-2.5 px-5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition"
-                >
-                  Write Another Review
-                </button>
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-600 text-left flex items-start gap-3 max-w-sm mx-auto">
+              <HeartHandshake size={24} className="text-teal-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-slate-800">Quick Steps:</p>
+                <p>1. Tap the review box in Google Maps</p>
+                <p>2. Select <strong>Paste</strong> to drop in your text</p>
+                <p>3. Tap <strong>Post</strong> to submit!</p>
               </div>
             </div>
-          )}
 
-        </main>
+            <div className="pt-2 space-y-2.5">
+              <button
+                type="button"
+                onClick={handleDirectGoogleClick}
+                className="w-full py-3 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-700/20 flex items-center justify-center gap-1.5 transition"
+              >
+                <ExternalLink size={14} />
+                <span>Open Google Reviews Form Again</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsSubmitted(false)}
+                className="w-full py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+              >
+                <ArrowLeft size={13} />
+                <span>Edit Review Draft</span>
+              </button>
+            </div>
+          </main>
+        )}
 
         {/* Global Footer */}
-        <footer className="text-center py-6 text-xs text-madverse-espresso-400 space-y-1">
-          <p className="font-bold text-madverse-espresso-500">
+        <footer className="text-center py-5 text-xs text-slate-400 space-y-1">
+          <p className="font-semibold text-slate-500">
             Powered by MadVerse · Create Beyond Ordinary
           </p>
-          <p className="text-[11px] text-madverse-espresso-400">
+          <p className="text-[11px] text-slate-400">
             Independent software. Not affiliated with or endorsed by Google LLC.
           </p>
         </footer>
+
       </div>
     </div>
   );
