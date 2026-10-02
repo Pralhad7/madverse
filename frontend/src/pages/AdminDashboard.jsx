@@ -12,7 +12,7 @@ import {
   Building2, Palette, Globe, Sliders, AlertTriangle,
   MessageSquare, Copy, Check, HeartHandshake, Phone, Mail, 
   ArrowRight, Lightbulb, TrendingUp, ThumbsUp, Send, CheckCircle, Shield,
-  Download, Image, Users, Award, Code, MessageCircle
+  Download, Image, Users, Award, Code, MessageCircle, Edit3, Zap, Info
 } from 'lucide-react';
 
 // ─────────────────────────── Overview Tab ───────────────────────────
@@ -258,10 +258,20 @@ const Locations = () => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editModalLocation, setEditModalLocation] = useState(null);
   const [qrModalLocation, setQrModalLocation] = useState(null);
   const [error, setError] = useState('');
   
   const [formData, setFormData] = useState({ name: '', address: '', google_review_link: '' });
+  const [editFormData, setEditFormData] = useState({ name: '', address: '', google_review_link: '' });
+
+  const evaluateGoogleLink = (url) => {
+    if (!url || typeof url !== 'string') return { isDirect: false, isGoogle: false };
+    const trimmed = url.trim().toLowerCase();
+    const isGoogle = trimmed.includes('google.com') || trimmed.includes('g.page');
+    const isDirect = trimmed.includes('/review') || trimmed.includes('writereview') || trimmed.includes('g.page/r/');
+    return { isDirect, isGoogle };
+  };
 
   const fetchLocations = () => {
     apiFetch('/api/locations')
@@ -295,6 +305,25 @@ const Locations = () => {
     }
   };
 
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await apiFetch(`/api/locations/${editModalLocation.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editFormData)
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update location');
+      }
+      setEditModalLocation(null);
+      fetchLocations();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const handleToggle = async (location) => {
     await apiFetch(`/api/locations/${location.id}/toggle`, { method: 'PUT' });
     fetchLocations();
@@ -316,6 +345,9 @@ const Locations = () => {
     );
   }
 
+  const addLinkEval = evaluateGoogleLink(formData.google_review_link);
+  const editLinkEval = evaluateGoogleLink(editFormData.google_review_link);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -328,7 +360,7 @@ const Locations = () => {
         </div>
 
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => { setIsModalOpen(true); setError(''); }}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-blue-500/20 transition self-start sm:self-auto"
         >
           <Plus size={16} />
@@ -345,7 +377,7 @@ const Locations = () => {
             Add your first location with its Google Maps review link to immediately generate your QR code flyer.
           </p>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => { setIsModalOpen(true); setError(''); }}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition"
           >
             <Plus size={15} /> Add First Location
@@ -360,6 +392,15 @@ const Locations = () => {
               onToggle={handleToggle}
               onDelete={handleDelete}
               onShowQR={() => setQrModalLocation(loc)}
+              onEdit={(target) => {
+                setEditModalLocation(target);
+                setEditFormData({
+                  name: target.name || '',
+                  address: target.address || '',
+                  google_review_link: target.google_review_link || ''
+                });
+                setError('');
+              }}
             />
           ))}
         </div>
@@ -402,9 +443,20 @@ const Locations = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Official Google Review Link *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">
+                Official Google Review Link *
+              </label>
+              {addLinkEval.isDirect ? (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                  <Zap size={10} className="fill-emerald-600" /> Direct 5★ Modal Link
+                </span>
+              ) : formData.google_review_link.length > 5 ? (
+                <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                  <AlertTriangle size={10} className="text-amber-600" /> Generic Maps URL
+                </span>
+              ) : null}
+            </div>
             <input 
               type="url" 
               required 
@@ -413,9 +465,20 @@ const Locations = () => {
               onChange={e => setFormData({...formData, google_review_link: e.target.value})} 
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
-            <p className="text-[11px] text-slate-400 mt-1">
-              Obtain this in your Google Business Profile under "Ask for reviews".
-            </p>
+
+            {/* Step-by-step Guide */}
+            <div className="mt-2 p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-slate-600 space-y-1">
+              <p className="font-bold text-blue-900 flex items-center gap-1">
+                <Info size={12} className="text-blue-600 shrink-0" />
+                <span>How to get your 1-Click Direct Review Link from Google:</span>
+              </p>
+              <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-1">
+                <li>Search your business name on Google (logged in as owner).</li>
+                <li>Tap <strong>"Ask for reviews"</strong> on your Google Business Profile.</li>
+                <li>Copy the direct shortlink (<code className="bg-white px-1 py-0.2 rounded font-mono text-blue-700">g.page/r/.../review</code>).</li>
+                <li>Paste here! Google will open the 5-star write box directly.</li>
+              </ol>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
@@ -431,6 +494,102 @@ const Locations = () => {
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
             >
               Save & Generate QR
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Location Modal */}
+      <Modal 
+        isOpen={!!editModalLocation} 
+        onClose={() => { setEditModalLocation(null); setError(''); }} 
+        title={`Edit Location: ${editModalLocation?.name}`}
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs font-medium border border-red-200">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Location / Branch Name *
+            </label>
+            <input 
+              type="text" 
+              required 
+              value={editFormData.name} 
+              onChange={e => setEditFormData({...editFormData, name: e.target.value})} 
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Physical Street Address (Optional)
+            </label>
+            <input 
+              type="text" 
+              placeholder="e.g., 123 Main St, Suite 400" 
+              value={editFormData.address} 
+              onChange={e => setEditFormData({...editFormData, address: e.target.value})} 
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">
+                Official Google Review Link *
+              </label>
+              {editLinkEval.isDirect ? (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                  <Zap size={10} className="fill-emerald-600" /> Direct 5★ Modal Link
+                </span>
+              ) : editFormData.google_review_link.length > 5 ? (
+                <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1">
+                  <AlertTriangle size={10} className="text-amber-600" /> Generic Maps URL
+                </span>
+              ) : null}
+            </div>
+            <input 
+              type="url" 
+              required 
+              placeholder="https://g.page/r/YOUR_BUSINESS/review or search.google.com/local/writereview?placeid=..." 
+              value={editFormData.google_review_link} 
+              onChange={e => setEditFormData({...editFormData, google_review_link: e.target.value})} 
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+            />
+
+            {/* Step-by-step Guide */}
+            <div className="mt-2 p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-slate-600 space-y-1">
+              <p className="font-bold text-blue-900 flex items-center gap-1">
+                <Info size={12} className="text-blue-600 shrink-0" />
+                <span>Switch to 1-Click Direct 5-Star Shortlink:</span>
+              </p>
+              <ol className="list-decimal list-inside space-y-0.5 text-slate-600 pl-1">
+                <li>Search your business name on Google.</li>
+                <li>Tap <strong>"Ask for reviews"</strong> on your Google Business Profile.</li>
+                <li>Copy your direct review shortlink (<code className="bg-white px-1 py-0.2 rounded font-mono text-blue-700">g.page/r/.../review</code>).</li>
+                <li>Paste here and save! Customers will immediately see the review dialog.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button 
+              type="button" 
+              onClick={() => { setEditModalLocation(null); setError(''); }} 
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+            >
+              Save Changes
             </button>
           </div>
         </form>

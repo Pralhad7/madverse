@@ -10,9 +10,76 @@ import {
   ExternalLink, Copy, Check, Sparkles, RefreshCw, 
   RotateCw, CheckCircle2, HeartHandshake, Volume2, VolumeX, 
   AlertCircle, ArrowLeft, Send, MessageSquare, ShieldCheck, Mail, Phone, User,
-  Mic, MicOff, Languages, Award
+  Mic, MicOff, Languages, Award, Zap, Star
 } from 'lucide-react';
 import { getReviewsForRating } from '../utils/reviewMessages';
+
+const PASTE_HELPER_TEXTS = {
+  en: {
+    copiedTitle: 'Review Copied & Ready to Post!',
+    copiedSubtitle: 'Google Reviews is open in your other tab. Follow these 2 quick steps to post:',
+    step1Title: 'Tap Review Box',
+    step1Desc: 'Switch to Google Maps & tap the review text area',
+    step2Title: 'Tap "Paste" on Keyboard',
+    step2Desc: 'Your review drops in with 1 tap from keyboard clipboard',
+    step3Title: 'Tap "Post" (Top Right)',
+    step3Desc: 'Hit the blue "Post" button to publish your review!',
+    reopenBtn: 'Open Google Reviews Page Again',
+    recopyBtn: 'Re-Copy Review Text',
+    copiedAlert: 'Copied to Clipboard! ✓',
+    editBtn: 'Edit Review Draft',
+    yourDraft: 'Your Copied Review:',
+    googleNotice: '🔒 Google Security: Google requires customers to tap Paste on their own keyboard to protect account privacy and prevent automated review bots.'
+  },
+  hi: {
+    copiedTitle: 'रिव्यू कॉपी हो गया! अब गूगल पर पेस्ट करें',
+    copiedSubtitle: 'गूगल रिव्यू का पेज दूसरे टैब में खुल चुका है। बस ये आसान कदम अपनाएं:',
+    step1Title: 'रिव्यू बॉक्स छुएं',
+    step1Desc: 'गूगल मैप्स में जाकर लिखने वाले बॉक्स पर टैप करें',
+    step2Title: 'कीबोर्ड पर "Paste" दबाएं',
+    step2Desc: 'आपका रिव्यू तुरंत एक टैप में बॉक्स में आ जाएगा',
+    step3Title: '"Post" पर टैप करें',
+    step3Desc: 'ऊपर दाईं ओर "Post" दबाकर रिव्यू पूरा करें',
+    reopenBtn: 'गूगल रिव्यू पेज फिर से खोलें',
+    recopyBtn: 'रिव्यू फिर से कॉपी करें',
+    copiedAlert: 'क्लिपबोर्ड में कॉपी हो गया! ✓',
+    editBtn: 'रिव्यू बदलें',
+    yourDraft: 'आपका कॉपी किया गया रिव्यू:',
+    googleNotice: '🔒 गूगल सुरक्षा: आपकी खाता सुरक्षा के लिए गूगल पर 1 बार कीबोर्ड से Paste करना अनिवार्य है।'
+  },
+  mr: {
+    copiedTitle: 'रिव्ह्यू कॉपी झाला! आता गुगलवर पेस्ट करा',
+    copiedSubtitle: 'गुगल रिव्ह्यू पेज दुसऱ्या टॅबमध्ये उघडले आहे. फक्त या २ सोप्या पायऱ्या फॉलो करा:',
+    step1Title: 'रिव्ह्यू बॉक्सवर टॅप करा',
+    step1Desc: 'गुगल मॅप्समध्ये जाऊन रिव्ह्यू बॉक्सवर क्लिक करा',
+    step2Title: 'कीबोर्डवर "Paste" दाबा',
+    step2Desc: 'तुमचा संपूर्ण मजकूर लगेच पेस्ट होईल',
+    step3Title: '"Post" वर टॅप करा',
+    step3Desc: 'वर उजव्या बाजूला "Post" बटण दाबून सबमिट करा',
+    reopenBtn: 'गुगल रिव्ह्यू पेज पुन्हा उघडा',
+    recopyBtn: 'रिव्ह्यू पुन्हा कॉपी करा',
+    copiedAlert: 'क्लिपबोर्डवर कॉपी झाले! ✓',
+    editBtn: 'रिव्ह्यू संपादित करा',
+    yourDraft: 'तुमचा कॉपी केलेला रिव्ह्यू:',
+    googleNotice: '🔒 गुगल सुरक्षा: गुगल नियमांनुसार तुमच्या प्रोफाइलवरून अधिकृत रिव्ह्यूसाठी १-टॅप पेस्ट आवश्यक आहे.'
+  },
+  gu: {
+    copiedTitle: 'રિવ્યૂ કોપી થઈ ગયો! હવે ગૂગલ પર પેસ્ટ કરો',
+    copiedSubtitle: 'ગૂગલ રિવ્યૂ પેજ બીજા ટેબમાં ખુલી ગયું છે. ફક્ત આ ૨ સરળ પગલાં અનુસરો:',
+    step1Title: 'રિવ્યૂ બોક્સ પર ટેપ કરો',
+    step1Desc: 'ગૂગલ મેપ્સમાં જઈને રિવ્યૂ બોક્સ પર ક્લિક કરો',
+    step2Title: 'કીબોર્ડ પર "Paste" દબાવો',
+    step2Desc: 'તમારો સંપૂર્ણ રિવ્યૂ તરત જ પેસ્ટ થઈ જશે',
+    step3Title: '"Post" પર ટેપ કરો',
+    step3Desc: 'ઉપર જમણી બાજુએ "Post" બટન દબાવી સબમિટ કરો',
+    reopenBtn: 'ગૂગલ રિવ્યૂ પેજ ફરીથી ખોલો',
+    recopyBtn: 'રિવ્યૂ ફરીથી કોપી કરો',
+    copiedAlert: 'ક્લિપબોર્ડ પર કોપી થઈ ગયું! ✓',
+    editBtn: 'રિવ્યૂ બદલો',
+    yourDraft: 'તમારો કોપી કરેલો રિવ્યૂ:',
+    googleNotice: '🔒 ગૂગલ સુરક્ષા: ગૂગલ પોલિસી મુજબ તમારા એકાઉન્ટથી રિવ્યૂ પોસ્ટ કરવા માટે ૧-ટેપ પેસ્ટ જરૂરી છે.'
+  }
+};
 
 export default function CustomerReview() {
   const { locationId } = useParams();
@@ -31,9 +98,19 @@ export default function CustomerReview() {
   const [editedDraft, setEditedDraft] = useState('');
   const [reviewOptionIndex, setReviewOptionIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [recopied, setRecopied] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+
+  const handleRecopy = () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(editedDraft).catch(() => {});
+    }
+    playSuccessChime();
+    setRecopied(true);
+    setTimeout(() => setRecopied(false), 2500);
+  };
 
   // Multi-Language & Voice Dictation & Staff Attribution
   const [selectedLang, setSelectedLang] = useState('en');
@@ -460,6 +537,8 @@ export default function CustomerReview() {
     );
   }
 
+  const pasteText = PASTE_HELPER_TEXTS[selectedLang] || PASTE_HELPER_TEXTS.en;
+
   return (
     <div className="min-h-screen bg-[#FAF6F0] text-slate-900 flex flex-col justify-between antialiased">
       <div className="max-w-md mx-auto w-full px-4 pt-4 sm:pt-6 pb-6">
@@ -688,15 +767,20 @@ export default function CustomerReview() {
               <button
                 type="button"
                 onClick={handleCopyAndOpenGoogle}
-                className="w-full py-4 px-5 bg-gradient-to-r from-teal-600 to-teal-800 hover:from-teal-700 hover:to-teal-900 active:scale-98 text-white rounded-2xl font-extrabold text-sm sm:text-base shadow-lg shadow-teal-700/25 flex items-center justify-center gap-2 transition-all"
+                className="w-full py-4 px-5 bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-700 hover:to-emerald-800 active:scale-98 text-white rounded-2xl font-black text-sm sm:text-base shadow-lg shadow-teal-700/25 flex items-center justify-center gap-2.5 transition-all group"
               >
-                <Copy size={18} />
-                <span>Copy & Open Google Reviews</span>
+                <Sparkles size={18} className="text-amber-300 animate-pulse" />
+                <span>Post Review on Google (1-Tap Paste)</span>
+                <ExternalLink size={16} className="text-teal-200 group-hover:translate-x-0.5 transition-transform" />
               </button>
               
-              <p className="text-center text-[11px] text-slate-400">
-                Copies text & opens Google Maps review form in 1 tap
-              </p>
+              <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500 font-medium">
+                <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  <Check size={11} className="stroke-[3]" /> Auto-Copies
+                </span>
+                <span>•</span>
+                <span>Opens Google Review Form in 1 Tap</span>
+              </div>
             </div>
 
             {/* Subtle Direct Option */}
@@ -713,39 +797,110 @@ export default function CustomerReview() {
 
           </main>
         ) : (
-          /* COMPLETION SCREEN */
-          <main className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-amber-900/10 text-center space-y-6">
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-xs">
-              <CheckCircle2 size={36} className="stroke-[2.2]" />
-            </div>
+          /* 1-TAP PASTE HELPER SCREEN */
+          <main className="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-amber-900/10 text-center space-y-5">
+            {/* Top Status Header */}
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/90 text-emerald-800 text-xs font-bold border border-emerald-300 shadow-xs">
+                <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                <span>{pasteText.copiedAlert}</span>
+              </div>
 
-            <div>
-              <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-                Review Copied!
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                {pasteText.copiedTitle}
               </h3>
-              <p className="text-slate-500 text-xs sm:text-sm mt-2 max-w-xs mx-auto leading-relaxed">
-                Google Reviews is opening in your browser. Just paste your review and tap <strong>Post</strong>!
+              <p className="text-slate-500 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
+                {pasteText.copiedSubtitle}
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-600 text-left flex items-start gap-3 max-w-sm mx-auto">
-              <HeartHandshake size={24} className="text-teal-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold text-slate-800">Quick Steps on Google Maps:</p>
-                <p>1. Tap the review box</p>
-                <p>2. Select <strong>Paste</strong> to drop in your text</p>
-                <p>3. Tap <strong>Post</strong> to submit!</p>
+            {/* Visual Interactive / Animated Phone Mockup */}
+            <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white rounded-2xl p-4 sm:p-5 text-left border border-slate-800 shadow-xl max-w-md mx-auto overflow-hidden relative">
+              {/* Simulated Google Maps Review Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-blue-500 flex items-center justify-center text-white text-xs font-black shadow-xs">
+                    G
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-100 truncate max-w-[180px]">
+                      {businessInfo?.businessName || 'Trident Net Holidays'}
+                    </p>
+                    <p className="text-[10px] text-slate-400">Google Maps Review Form</p>
+                  </div>
+                </div>
+                <div className="flex items-center text-amber-400 text-xs tracking-widest font-black">
+                  ★★★★★
+                </div>
+              </div>
+
+              {/* Simulated Review Textarea with 1-Tap Paste Chip */}
+              <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-700/80 relative mb-3">
+                <p className="text-slate-300 text-xs italic line-clamp-2">
+                  "{editedDraft || 'Excellent service and great holiday planning! Highly recommended.'}"
+                </p>
+                <div className="mt-2.5 flex items-center justify-between">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-500/25 text-teal-300 text-[11px] font-bold border border-teal-500/50 shadow-sm animate-pulse">
+                    <span>📋 Tap "Paste" Here</span>
+                  </div>
+                  <span className="text-[10px] text-teal-400 font-semibold">Step 2: Instant Paste</span>
+                </div>
+              </div>
+
+              {/* 3 Clear Visual Steps */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-center">
+                <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                  <div className="w-5 h-5 mx-auto rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-black flex items-center justify-center mb-1">
+                    1
+                  </div>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-200">{pasteText.step1Title}</p>
+                </div>
+                <div className="bg-slate-900/80 p-2 rounded-xl border border-teal-500/40 ring-1 ring-teal-500/50">
+                  <div className="w-5 h-5 mx-auto rounded-full bg-teal-500 text-slate-950 text-[10px] font-black flex items-center justify-center mb-1">
+                    2
+                  </div>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-teal-300">{pasteText.step2Title}</p>
+                </div>
+                <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                  <div className="w-5 h-5 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black flex items-center justify-center mb-1">
+                    3
+                  </div>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-200">{pasteText.step3Title}</p>
+                </div>
               </div>
             </div>
 
-            <div className="pt-2 space-y-2.5">
+            {/* Quick Re-Copy & Preview Box */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-left max-w-md mx-auto space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700">{pasteText.yourDraft}</span>
+                <button
+                  type="button"
+                  onClick={handleRecopy}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                    recopied 
+                      ? 'bg-emerald-600 text-white shadow-xs' 
+                      : 'bg-white border border-slate-200 text-teal-700 hover:bg-teal-50'
+                  }`}
+                >
+                  {recopied ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{recopied ? pasteText.copiedAlert : pasteText.recopyBtn}</span>
+                </button>
+              </div>
+              <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 max-h-24 overflow-y-auto leading-relaxed font-sans">
+                {editedDraft}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-1 space-y-2 max-w-md mx-auto">
               <button
                 type="button"
                 onClick={handleDirectGoogleClick}
-                className="w-full py-3 px-4 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-md shadow-teal-700/20 flex items-center justify-center gap-1.5 transition"
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-teal-700 to-teal-800 hover:from-teal-800 hover:to-teal-900 active:scale-98 text-white rounded-xl text-xs sm:text-sm font-extrabold shadow-md shadow-teal-700/20 flex items-center justify-center gap-2 transition"
               >
-                <ExternalLink size={14} />
-                <span>Open Google Reviews Form Again</span>
+                <ExternalLink size={15} />
+                <span>{pasteText.reopenBtn}</span>
               </button>
 
               <button
@@ -754,9 +909,14 @@ export default function CustomerReview() {
                 className="w-full py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
               >
                 <ArrowLeft size={13} />
-                <span>Edit Review Draft</span>
+                <span>{pasteText.editBtn}</span>
               </button>
             </div>
+
+            {/* Trust & Explanation Note */}
+            <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-normal">
+              {pasteText.googleNotice}
+            </p>
           </main>
         )}
 

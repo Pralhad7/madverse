@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { MapPin, Trash2, QrCode, ExternalLink, Copy, Check, Power, Printer } from 'lucide-react';
+import { MapPin, Trash2, QrCode, ExternalLink, Copy, Check, Power, Edit3, Zap, AlertTriangle } from 'lucide-react';
 
-const LocationCard = ({ location, onToggle, onDelete, onShowQR }) => {
+const LocationCard = ({ location, onToggle, onDelete, onShowQR, onEdit }) => {
   const [copied, setCopied] = useState(false);
   const { id, name, address, is_active, isActive, google_review_link } = location;
   const activeStatus = is_active !== undefined ? is_active : isActive;
   const reviewUrl = `${window.location.origin}/review/${id}`;
+
+  const isDirectReviewLink = Boolean(
+    google_review_link && (
+      google_review_link.includes('/review') ||
+      google_review_link.includes('writereview') ||
+      google_review_link.includes('g.page/r/')
+    )
+  );
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(reviewUrl);
@@ -17,7 +25,7 @@ const LocationCard = ({ location, onToggle, onDelete, onShowQR }) => {
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all duration-200 p-5 flex flex-col justify-between group">
       <div>
         {/* Header with Title & Status Badge */}
-        <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div>
             <h4 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
               {name}
@@ -36,6 +44,21 @@ const LocationCard = ({ location, onToggle, onDelete, onShowQR }) => {
             <span className={`w-1.5 h-1.5 rounded-full ${activeStatus ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
             {activeStatus ? 'Active' : 'Paused'}
           </span>
+        </div>
+
+        {/* Google Link Quality Indicator */}
+        <div className="mb-3">
+          {isDirectReviewLink ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <Zap size={11} className="fill-emerald-500" />
+              <span>Direct 5★ Google Review Modal</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
+              <AlertTriangle size={11} className="text-amber-600" />
+              <span>Generic Search Link (Edit to use Direct Link)</span>
+            </span>
+          )}
         </div>
 
         {/* Quick URL & Test Link Box */}
@@ -69,6 +92,16 @@ const LocationCard = ({ location, onToggle, onDelete, onShowQR }) => {
             <QrCode size={14} />
             <span>QR & Flyer</span>
           </button>
+
+          {onEdit && (
+            <button
+              onClick={() => onEdit(location)}
+              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition"
+              title="Edit Location & Google Link"
+            >
+              <Edit3 size={15} />
+            </button>
+          )}
 
           <a
             href={reviewUrl}
