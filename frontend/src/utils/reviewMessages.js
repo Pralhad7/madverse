@@ -1,92 +1,116 @@
-/**
- * Authentic, long-form Google Review message library categorized by star rating (1 to 5).
- * Each rating contains 12 to 15 detailed, realistic, human-sounding reviews (50-100 words each).
- * Supports {businessName} and {locationName} variable interpolation.
- */
-
 export const REVIEW_MESSAGES_BY_RATING = {
   1: [
-    "I am leaving this review to share genuine feedback about my recent visit to {businessName} in {locationName}. Unfortunately, our expectations were not met from the moment we arrived. We encountered an excessively long wait time before anyone acknowledged our party, and the staff seemed noticeably overwhelmed and disengaged. When we inquired about our order status, the response was dismissive rather than helpful. I truly hope the management team uses this constructive input to re-evaluate customer pacing and communication training, as the initial concept of the business seems promising.",
-    "Regrettably, my experience with {businessName} fell far short of what was advertised. We scheduled our appointment well in advance, yet had to wait over 40 minutes past our designated time with zero status updates. The staff members on duty seemed disorganized, and the overall cleanliness of the front reception area left much to be desired. Basic customer courtesy and prompt follow-up were noticeably lacking. I am sharing this honest review so management can address these operational bottlenecks for future guests.",
-    "I rarely post critical reviews, but our recent visit to {businessName} was genuinely disappointing. The pricing charged did not reflect the quality of service delivered. Key amenities that were highlighted on their website were either out of order or unavailable without prior notice. When we brought this to the attention of the supervisor on shift, there was very little empathy or accountability shown. Stronger leadership, better staff coordination, and transparent pricing are urgently needed here.",
-    "Sharing honest and constructive feedback regarding our visit to {businessName} ({locationName}). The physical space has great visual aesthetic, but the actual service delivery was frustratingly inconsistent. Our requests were forgotten multiple times, and simple inquiries required repeated follow-ups. What could have been a standout experience ended up feeling stressful and neglected. Management needs to invest in staff training and quality control before expanding further.",
-    "My visit to {businessName} today was unfortunately a one-star experience due to severe service delays and poor communication. We spent nearly an hour waiting with no proactive updates, only to find out that our request had been completely misplaced in their internal system. No genuine apology or gesture of goodwill was offered to rectify the oversight. While every business has off days, how issues are handled matters, and the lack of care shown here was deeply disheartening.",
-    "I came to {businessName} with high hopes based on recommendations, but our experience was plagued by multiple basic errors. The staff appeared undertrained and had difficulty answering standard questions about the services offered. Furthermore, the wait time was completely unreasonable given how few customers were present. A serious review of internal operational standards and staff readiness is necessary for this business to succeed long term.",
-    "Disappointing experience overall at {businessName}. We noticed a clear lack of attention to detail and customer care during our visit. Several key items and promised deliverables were missing, and the staff seemed eager to rush us out without addressing our questions. For a business that promotes itself as high-end, the execution was subpar. I hope this candid feedback prompts meaningful changes in customer support.",
-    "I felt compelled to leave this feedback following a frustrating visit to {businessName} in {locationName}. From inconsistent scheduling to lackluster customer assistance, the entire encounter felt impersonal and poorly coordinated. Communication was practically non-existent, leaving us in the dark for extended periods. There is obvious potential in the concept, but until management prioritizes guest satisfaction and reliability, I cannot recommend it.",
-    "Our encounter with {businessName} was marred by unexpected hidden fees and unhelpful customer service. We were quoted one rate, but the final invoice included unexpected surcharges that were never communicated beforehand. When we politely requested clarification, the front desk was defensive rather than professional. Transparency and honesty are essential in customer relations, and this visit sadly eroded our trust.",
-    "An underwhelming and stressful experience at {businessName}. We encountered multiple operational friction points, including a chaotic check-in process, unkempt facilities, and an inattentive team that seemed distracted. It felt like customer comfort was an afterthought rather than a priority. I sincerely hope ownership takes proactive steps to overhaul their front-of-house training and daily maintenance protocols.",
-    "I am sharing this one-star review to highlight several critical service gaps we encountered at {businessName}. The wait times were prolonged, the promised timeframes were ignored, and our concerns were met with indifference. It is disappointing when a brand fails to honor its own service commitments. Management needs to step up accountability and establish clear customer service benchmarks immediately.",
-    "My recent visit to {businessName} ({locationName}) left much to be desired. Despite having confirmed details in advance, the staff seemed completely unprepared for our arrival. Simple requests were mishandled, and we felt neglected throughout our time there. Constructive criticism: focus less on marketing flash and focus much more on the fundamentals of welcoming and caring for your visitors."
+    "Absolutely terrible experience at {businessName}. The service was unbelievably slow, and the staff seemed completely disinterested in helping us. Will never return.",
+    "I had very high hopes for {businessName}, but it was a complete letdown. The quality was poor, the environment was unkempt, and I felt like my time was entirely wasted.",
+    "Do not recommend. {businessName} in {locationName} completely failed to deliver on what they promised. It was frustrating from start to finish.",
+    "Very disappointing visit. The management really needs to step up and train their team properly. Worst experience I've had in {locationName}.",
+    "I wish I could give zero stars. We were ignored for ages, and when we finally got some attention, the attitude was incredibly rude. Avoid {businessName}.",
+    "Unprofessional and disorganized. {businessName} clearly does not care about customer satisfaction. Save your money and go somewhere else.",
+    "Horrible. Just horrible. I rarely leave bad reviews, but {businessName} was so bad I felt compelled to warn others. The quality is simply not there.",
+    "A total disaster. Nothing went right during our visit to {businessName}. They were understaffed, overwhelmed, and unapologetic.",
+    "I don't understand how {businessName} stays in business with such poor service. We waited forever, and the result was severely subpar.",
+    "Completely unacceptable experience. The staff was incredibly dismissive. I will make sure my friends and family know to avoid {businessName}.",
+    "Massive letdown. The online pictures look great, but the reality at {businessName} is grim. Needs a complete overhaul.",
+    "Rude staff, terrible quality, and way overpriced for what you get. {businessName} is easily the worst establishment in {locationName}.",
+    "I was genuinely shocked by how bad the customer service was here. Nobody smiled, nobody helped, and nobody cared. Skip {businessName}.",
+    "Such a frustrating experience. We had an appointment but were still made to wait an hour, only to receive rushed and sloppy service.",
+    "Terrible value for money. I feel completely ripped off by {businessName}. The standards here are non-existent.",
+    "I would strongly advise against visiting {businessName}. It is chaotic, dirty, and the staff is incredibly unprofessional.",
+    "Awful. Just a complete waste of time. I left feeling angry and disappointed. I will never step foot in {businessName} again.",
+    "The absolute worst. I have never been treated so poorly as a paying customer. {businessName} needs a massive reality check.",
+    "Nothing but problems. The service was virtually nonexistent. If you are in {locationName}, please find a different place.",
+    "Completely botched the service and refused to take accountability. The management at {businessName} should be ashamed."
   ],
-
   2: [
-    "I am rating {businessName} two stars because while the physical atmosphere and concept show promise, the execution leaves a lot to be desired. The staff was polite when spoken to, but the wait times were excessive and our order was missing key items that we had specifically requested. It took several follow-ups to get simple corrections made. With more thorough staff training and tighter operational discipline, this place could be much better, but right now it feels incomplete.",
-    "Visited {businessName} in {locationName} over the weekend. On the positive side, the decor is modern and the check-in was smooth. However, the subsequent service was sluggish, and the staff seemed disorganized during peak hours. We had to ask three different people for assistance before getting our questions answered. It has the foundation of a decent spot, but the lack of consistency prevents it from earning a solid recommendation at this time.",
-    "A mixed experience that leaned more toward frustrating than enjoyable at {businessName}. The ambiance is inviting, but the customer service was decidedly detached. We felt like we were inconveniencing the team simply by asking for standard service details. Pricing also felt steep considering the portion sizes and the level of attention we received. Hopeful that management takes this as constructive input to elevate their guest experience.",
-    "There are a few redeeming qualities at {businessName}, but overall my visit fell well below expectations. The primary issue was pacing: everything took twice as long as estimated, with no proactive check-ins from staff to keep us informed. When the service was finally completed, several details were overlooked. It feels like they are struggling with staffing shortages or logistical bottlenecks that need prompt executive attention.",
-    "Two stars for {businessName}. The location is convenient and the initial greeting was warm, but our visit deteriorated from there. We ran into prolonged delays and received lukewarm attention once seated. It seemed like the team was prioritizing back-of-house tasks over actively engaging with patrons. A little more warmth, proactive communication, and speed would go a long way in turning this into a 4-star destination.",
-    "Came to {businessName} expecting great things, but walked away feeling underwhelmed. The environment is stylish, yet basic hygiene and organization behind the counter seemed compromised during busy periods. Furthermore, the turnaround time was surprisingly slow for what we ordered. There is undeniable potential here, but operational refinements are needed before it justifies the premium pricing.",
-    "Fairly mediocre visit to {businessName} in {locationName}. While the venue itself is pleasant, the customer service was noticeably rushed and transactional. We did not feel welcomed, and basic requests took far longer than reasonable. It felt like the team was just going through the motions rather than striving to create a memorable customer journey. Needs greater attention to hospitality.",
-    "My experience at {businessName} was a tale of two halves. The initial contact was promising, but the follow-through was severely lacking. Important details were forgotten, and we had to remind the staff multiple times about items we had already paid for. I appreciate the modern setting, but hospitality requires diligent execution, which was missing during our visit.",
-    "Left {businessName} with mixed feelings. The aesthetic and branding are top notch, but the substance did not match the style. Staff seemed overwhelmed by even moderate crowds, leading to delays and confused order handoffs. If management can streamline peak-hour workflows and train their team to handle pressure gracefully, this could easily improve.",
-    "A 2-star rating reflects the noticeable gap between expectation and reality at {businessName}. While nothing was catastrophic, a series of small annoyances—from sticky tables to slow responses and cold customer service—dampened what should have been a pleasant outing. Paying customers deserve attentive, proactive care, and I hope leadership refocuses on these guest essentials.",
-    "Wanted to love {businessName}, but the service hiccups made it hard to enjoy. The check-in was chaotic, and our party waited nearly 30 minutes past our booking time without an apology or explanation. The staff seemed well-intentioned but clearly lacked adequate guidance and coordination. With structured leadership, this spot could turn things around.",
-    "Decent premises at {businessName}, but let down by lackluster service and careless execution. Several requested items were not available despite being listed on the active menu, and the staff showed minimal interest in suggesting alternatives. It is hard to justify returning until they demonstrate a higher commitment to guest satisfaction and consistency."
+    "Below average experience. {businessName} wasn't the worst I've ever seen, but it definitely needs a lot of improvement.",
+    "The staff at {businessName} seemed nice enough, but the quality of the service was just really lacking. Probably won't return.",
+    "Very mediocre. I expected much better from {businessName} based on what I heard. Not really worth the price tag.",
+    "Needs work. The environment was okay, but the service was incredibly slow and disorganized. I was quite disappointed.",
+    "Not great. {businessName} in {locationName} has potential, but the execution is sloppy. They need to focus more on quality control.",
+    "I didn't have a good time here. The staff seemed confused and uncoordinated. {businessName} really needs to get its act together.",
+    "Slightly disappointed. It wasn't a total disaster, but it definitely fell short of basic expectations. Could be much better.",
+    "Underwhelming. For the price they charge, {businessName} should be delivering a much higher standard of service.",
+    "A bit of a letdown. The atmosphere is nice, but everything else at {businessName} is severely lacking.",
+    "I wanted to like this place, but the experience was just too frustrating. Slow service and poor communication.",
+    "Just okay, leaning towards bad. {businessName} really needs to train their staff better. They seemed completely lost.",
+    "Not worth the hype. I found the quality to be very subpar. I'd recommend looking at other options in {locationName}.",
+    "Disorganized and chaotic. I felt rushed and unappreciated as a customer at {businessName}.",
+    "The service was incredibly inconsistent. One person was helpful, the next was totally rude. {businessName} needs better management.",
+    "Fell way below my expectations. The quality simply doesn't match the premium price they are asking for.",
+    "I wouldn't go out of my way to come back here. {businessName} is just entirely forgettable and slightly annoying.",
+    "Needs a lot of improvement in customer care. We felt like an inconvenience rather than paying guests.",
+    "Poor value. You can get much better quality for the same price elsewhere in {locationName}. Skip {businessName}.",
+    "The aesthetic is nice, but the actual service is a total mess. Looks aren't everything, {businessName}.",
+    "Frustrating visit. It took way too long to get what we needed, and there was zero apology for the delay."
   ],
-
   3: [
-    "A very middle-of-the-road experience at {businessName} in {locationName}. There were several clear positives: the interior design is thoughtfully curated, the environment is clean, and the location is easily accessible. On the flip side, the service was quite slow, and the staff seemed stretched thin during our visit. The final product was satisfactory but didn't quite justify the premium price point. A solid 3 stars—worth visiting if you are nearby, but there is definite room for refinement.",
-    "Had a decent overall visit to {businessName}. The staff was polite and courteous, and the atmosphere had an enjoyable, contemporary vibe. However, wait times were longer than expected for a weekday afternoon, and our questions were answered with somewhat rehearsed, generic information. It’s an acceptable spot that gets the fundamentals mostly right, but it lacks that special spark or attention to detail that turns a casual visitor into a loyal advocate.",
-    "Visited {businessName} for the first time today. The greeting at the door was welcoming, and the physical space is undoubtedly stylish and photogenic. That said, the service pace felt inconsistent; our appetizers arrived quickly, but the main items took considerable time to follow. The quality was good, not extraordinary. Worth a try if you have time to spare, but temper your expectations regarding speed.",
-    "Giving {businessName} an honest 3-star rating. The strengths are obvious: convenient parking, clean facilities, and a very pleasant interior layout. However, the value-for-money equation feels slightly off. Portions and service depth felt standard, while the bill was certainly on the higher end of the spectrum. It's a reliable option in the area, but there is opportunity to elevate the guest experience further.",
-    "My experience at {businessName} in {locationName} was completely average. Everything was fine—nothing stood out as egregiously bad, but equally nothing left a lasting, memorable impression. The team did their jobs adequately, and the items delivered matched the basic descriptions. If you need a dependable, no-fuss option in the neighborhood, this fits the bill, though don't expect over-the-top hospitality.",
-    "Three stars for {businessName}. The highlights were the creative ambiance and the friendly attitude of our server. Where it fell short was in operational synchronization: drinks took too long to arrive, and one of our orders was brought out lukewarm. The team apologized and corrected it, which we appreciated. With tighter kitchen and floor synchronization, this can easily become a 4 or 5-star venue.",
-    "A solid, respectable establishment with some clear areas for growth. {businessName} has great curb appeal and comfortable seating. Our overall interaction was satisfactory, but we noticed the staff was somewhat inattentive once the initial order was placed. We had to flag down team members multiple times for water and the check. Good overall, just needs slightly sharper floor awareness.",
-    "Had an alright time at {businessName}. The core offering is solid and the presentation was neat. However, the background music was a bit too loud for comfortable conversation, and the wait times between service stages felt dragged out. I would consider returning on an off-peak day to see if the pacing improves when the team isn't as heavily burdened.",
-    "A balanced review for {businessName}: the positives include friendly front-desk staff, a clean and well-lit venue, and easy accessibility. On the downside, the overall turnaround time felt sluggish, and several menu items were sold out early in the evening. It’s a satisfactory neighborhood spot with good bones that could really shine with minor operational tweaks.",
-    "My visit to {businessName} was pleasant enough, earning a fair 3 out of 5 stars. The ambiance is charming, and the staff was respectful throughout. However, the pricing feels a notch higher than the service caliber warrants. It delivers an acceptable experience, but nothing that made me eager to rush back right away. A good, steady choice for casual needs.",
-    "Decent experience at {businessName} in {locationName}. The space is clean and modern, and the team was courteous when interacting with us. The main drawback was the pacing during peak hours, which resulted in extended wait intervals between courses. It is a competent establishment that could easily reach higher acclaim with improved staff coordination.",
-    "Satisfactory visit to {businessName}. The highlights were the artistic decor and the polite demeanor of the team. The minor setbacks were related to wait times and billing clarification, which took longer than necessary to resolve. Overall, it provides an acceptable experience for the area, and with a bit more attention to guest pacing, it will certainly thrive."
+    "It was okay. {businessName} in {locationName} is pretty average. Nothing terrible, but nothing that stands out either.",
+    "A decent experience. The service at {businessName} was fine, but a bit slow. Might come back if I'm in the area.",
+    "Fairly standard. {businessName} met basic expectations but didn't go above and beyond. Exactly a 3-star experience.",
+    "Not bad, but not great. The quality was acceptable, but the staff lacked energy and enthusiasm. Just an average visit.",
+    "Middle of the road. {businessName} is fine if you're in a pinch, but I wouldn't go out of my way for it.",
+    "The experience was completely average. Everything was just 'fine'. {businessName} could definitely improve their customer service speed.",
+    "Acceptable, but nothing to write home about. The pricing at {businessName} is fair for the average quality you receive.",
+    "It got the job done. {businessName} wasn't anything special, but we left satisfied enough. A solid 3 stars.",
+    "Decent value, but the atmosphere was a bit lacking. {businessName} is a very middle-tier establishment.",
+    "Some things were good, some things were bad. A very mixed bag at {businessName}. Overall, an okay visit.",
+    "The staff was friendly, but the quality of the actual service was just mediocre. {businessName} is alright.",
+    "Adequate. {businessName} in {locationName} is exactly what you expect from a standard, average business.",
+    "Neither disappointed nor impressed. {businessName} exists perfectly in the middle. Fine for a quick visit.",
+    "The location is great, but the service is a bit lackluster. If they improved their speed, {businessName} would be much better.",
+    "Fair. I don't have any major complaints, but I also don't have any major praises for {businessName}.",
+    "It's a solid backup option. I wouldn't make {businessName} my first choice, but it's acceptable if you need it.",
+    "An okay experience overall. The staff was a bit overwhelmed, but they tried their best. 3 stars is fair.",
+    "Pretty average. The decor is nice, but the actual quality is just decent. {businessName} could push themselves more.",
+    "Satisfactory. We got exactly what we paid for at {businessName}. No thrills, no major issues.",
+    "It was fine. {businessName} is a completely average place in {locationName}."
   ],
-
   4: [
-    "Really enjoyed our time at {businessName} in {locationName}! The overall ambiance is wonderfully stylish, welcoming, and relaxed. The team was attentive from the moment we walked through the door, offering helpful recommendations and checking in at just the right intervals. The quality of what we received was top tier, fresh, and beautifully presented. The only reason for withholding that fifth star was a slight delay during the checkout process, but otherwise it was a fantastic visit that I would gladly repeat.",
-    "A thoroughly satisfying 4-star experience at {businessName}! You can tell management cares deeply about guest comfort; the seating is comfortable, the lighting is atmospheric, and the staff is genuinely friendly and well-trained. Everything we ordered exceeded expectations in flavor and presentation. It was slightly crowded, which made parking a minor challenge, but the visit itself was well worth the trip. Highly recommended!",
-    "We had a very positive experience at {businessName} today. The staff was courteous, knowledgeable, and eager to ensure our visit was seamless. The cleanliness and attention to detail throughout the space were immediately noticeable. Service was prompt without feeling rushed, allowing us to truly enjoy the setting. Just a tiny suggestion on ambient noise levels during peak hours, but overall a top-notch establishment in the community.",
-    "Impressed by the quality and professionalism on display at {businessName} ({locationName}). From the seamless greeting to the expertly executed offerings, almost every aspect of our visit was on point. The team went out of their way to accommodate our specific preferences without hesitation. A solid 4.5 stars rounded down only because of a brief wait despite our reservation. Will definitely be returning with friends!",
-    "Great discovery in {locationName}! {businessName} delivers on both style and substance. The venue is clean, modern, and thoughtfully arranged, making it a great destination for both quick visits and leisurely gatherings. The staff members were polite, professional, and attentive throughout our stay. Excellent quality across the board. A keeper for my regular rotation!",
-    "Strong 4-star visit to {businessName}. The customer service was warm and personable, which set a great tone right away. The offerings were prepared with evident care, and the presentation was creative and refined. We appreciated how clean and organized everything felt. With just a tiny bit more speed on the drink service, this would be an absolute 5-star standout.",
-    "Consistently good experience at {businessName}. This was our second visit, and the standards have remained impressively high. The team operates like a well-oiled machine, handling busy crowds with calm professionalism and friendly smiles. Everything was delicious and presented cleanly. A wonderful asset to {locationName} that I feel confident recommending.",
-    "Very pleased with our experience at {businessName}. The staff demonstrated great knowledge of their offerings and guided us toward choices that suited our tastes perfectly. The space has a vibrant, upbeat energy while maintaining a high level of comfort. Just a small delay when requesting the final bill, but the hospitality and quality made it a memorable outing.",
-    "A delightful experience at {businessName}! The environment is aesthetically pleasing and impeccably maintained. The team was attentive without hovering, striking the perfect balance of hospitality. The quality of what we received was clearly a cut above average. It's refreshing to see a local business take such pride in their daily operations. Keep up the great work!",
-    "Four solid stars for {businessName} in {locationName}. The customer care was standout—everyone we spoke with was cheerful, helpful, and accommodating. The execution of our request was swift and accurate. The only minor critique is that seating felt a bit close together during rush hour, but the warmth of the staff more than made up for it. Will return soon!",
-    "Really positive impressions from our visit to {businessName}. The atmosphere is relaxed and contemporary, with pleasant background music and spotless amenities. Our server was knowledgeable, friendly, and quick to anticipate our needs. The quality delivered was dependable and high value. A very strong contender in the local scene.",
-    "A wonderful outing at {businessName}! The team made us feel valued from the second we walked in. The items were crafted with high-grade ingredients and presented with artistic flair. Everything moved along smoothly and on schedule. A very close 5-star experience that fell just shy due to limited parking availability outside. Definitely worth a visit!"
+    "Really great experience at {businessName}! The service was prompt and the quality was excellent. Just one minor hiccup, but overall highly recommended.",
+    "I always enjoy coming to {businessName} in {locationName}. The staff is very friendly and the atmosphere is lovely. Solid 4 stars!",
+    "Very good! {businessName} delivers consistent quality and great customer care. Would definitely recommend checking them out.",
+    "Almost perfect! The experience at {businessName} was wonderful. Great value for money and very professional service.",
+    "A really solid choice in {locationName}. {businessName} has a great team and the quality is definitely above average.",
+    "I was very impressed by {businessName}. The attention to detail is great, and the staff was super helpful. Will return!",
+    "Great place! We had a wonderful time at {businessName}. Everything was clean, well-organized, and the staff was lovely.",
+    "Very good service and excellent quality. {businessName} rarely disappoints. A highly reliable spot in {locationName}.",
+    "Thoroughly enjoyed my visit to {businessName}. The team is knowledgeable and the atmosphere is very welcoming. 4 shining stars!",
+    "Great experience overall! The staff at {businessName} made us feel right at home. I knocked off one star just because it was a bit crowded, but otherwise fantastic.",
+    "Highly dependable. I've been to {businessName} a few times now and they always deliver great results. Very satisfied.",
+    "Really good value and fantastic service. {businessName} is definitely one of the better options in {locationName}.",
+    "I had a lovely time here! {businessName} has a great vibe and the employees actually seem to care about the customers.",
+    "Very solid establishment. {businessName} provides great quality and fair prices. I will definitely be recommending them.",
+    "Great job, {businessName}! The service was fast and the staff was extremely polite. Just a really good, positive experience.",
+    "I'm quite picky, but {businessName} genuinely impressed me. The cleanliness and professionalism were top notch.",
+    "A fantastic addition to {locationName}. {businessName} brings great energy and really good quality. Highly recommend!",
+    "Very happy with my visit. {businessName} handled everything perfectly and the customer service was great.",
+    "Really wonderful experience! The team at {businessName} is super sweet and the quality is undeniable. 4 solid stars.",
+    "Great place to visit. {businessName} is reliable, clean, and has very friendly management. I always leave happy."
   ],
-
   5: [
-    "An absolute masterclass in hospitality! {businessName} in {locationName} exceeded every single expectation we had. From the moment we stepped through the doors, the staff made us feel like valued VIP guests with their warm greetings and prompt, genuine attentiveness. The creative aesthetic, curated ambiance, and extraordinary attention to detail are second to none. Everything delivered was flawless in quality and presentation. If you are looking for an experience that truly creates beyond the ordinary, look no further. A well-deserved 5 stars!",
-    "Hands down one of the finest experiences I have had in {locationName}! {businessName} sets the benchmark for what exceptional customer service should look like. The team was courteous, proactive, and deeply passionate about their craft. Every interaction was marked by genuine warmth and professionalism. The physical space is immaculate, beautifully designed, and thoroughly inviting. You can feel the care and dedication poured into every detail. I cannot recommend {businessName} enthusiastically enough!",
-    "Perfection from start to finish! Our visit to {businessName} was simply unforgettable. The attention to detail is evident in every corner, from the stunning decor and comfortable seating to the personalized service provided by the outstanding staff. They anticipated our needs before we even had to ask, making our entire party feel pampered and appreciated. The quality was nothing short of extraordinary. Do yourself a favor and experience this gem for yourself!",
-    "{businessName} has completely won me over! Rarely do you encounter a business that delivers on its promises with such consistency and artistic excellence. The environment is breathtaking, the staff is exceptionally knowledgeable and kind, and the overall execution was seamless. You leave feeling energized, valued, and eager to come back. This is unquestionably a five-star establishment that raises the standard for the entire community!",
-    "Five stars across the board for {businessName} in {locationName}! The hospitality here is on another level entirely. The staff greeted us with authentic smiles, provided spot-on recommendations, and checked in at the perfect cadence throughout our visit. Everything we experienced was fresh, inventive, and executed with impeccable precision. If you appreciate quality, elegance, and warm human hospitality, {businessName} is an absolute must-visit!",
-    "Phenomenal experience! I had heard great things about {businessName}, but seeing it in person was a whole different level of impressive. The team operates with extraordinary grace, even when the venue is bustling with activity. The cleanliness is pristine, the ambiance is elevated yet comfortable, and every single offering was curated to perfection. Easily the highlight of our week. We will be regular visitors from here on out!",
-    "What a breathtaking discovery! {businessName} has redefined customer satisfaction for me. From the warm reception to the meticulous care given to our individual requests, the entire team demonstrated world-class professionalism. The atmosphere is serene, sophisticated, and deeply creative. It is so rare to find a place where every element aligns so effortlessly. Outstanding job to everyone involved—five stars without hesitation!",
-    "If I could give {businessName} more than five stars, I would in a heartbeat! This business embodies passion, creativity, and genuine customer care. Every staff member we interacted with was friendly, articulate, and eager to go the extra mile to ensure our comfort. The turnaround was prompt, and the quality was transcendent. A brilliant example of what happens when a team genuinely loves what they do. Bravo!",
-    "Truly an extraordinary experience at {businessName} ({locationName}). The curated environment stimulates the senses while offering a relaxing, luxurious sanctuary from the busy city. The staff was remarkably attentive, courteous, and polite, making our special occasion feel genuinely momentous. Every detail was handled with precision and pride. An unforgettable visit that we will be raving about to family and friends for months!",
-    "A quintessential 5-star establishment! {businessName} combines stunning aesthetic design with unmatched warmth and hospitality. The team's commitment to excellence is obvious in every gesture, from the personalized welcome to the pristine presentation of their services. We felt thoroughly cared for throughout our entire stay. It’s rare to find such authentic dedication to the customer journey. You simply cannot miss this place!",
-    "Outstanding in every conceivable way! {businessName} delivered one of the most delightful customer experiences I have enjoyed all year. The staff was friendly, swift, and highly knowledgeable, answering all our questions with enthusiasm. The space itself is an architectural and visual treat, perfectly maintained and spotless. It is clear that leadership holds their team to the highest standards. Five well-earned stars!",
-    "A triumph of creative vision and top-tier hospitality! {businessName} in {locationName} is in a league of its own. Everything from the ambiance and acoustics to the personalized customer care was calibrated to perfection. We never felt rushed, yet every need was met with lightning speed and sincere smiles. This is what modern customer service should be. Run, don't walk, to experience {businessName}!",
-    "Simply unmatched! My visit to {businessName} was an absolute delight from beginning to end. The staff's hospitality was heartwarming, the ambiance was sophisticated and cozy, and the quality of execution was second to none. Every detail was handled with intentionality and flair. It's rare to walk out of a business feeling so thoroughly appreciated as a guest. A glowing five-star recommendation!",
-    "Beyond extraordinary! {businessName} has completely mastered the art of creating an unforgettable guest experience. The staff treats every patron with royal courtesy and infectious energy. Everything was executed flawlessly, on time, and with sublime presentation. It is inspiring to see a business operate with such artistic integrity and customer-first devotion. Five stars all the way!",
-    "A true crown jewel of {locationName}! From the pristine aesthetic and welcoming energy to the attentive, gracious staff, {businessName} delivers an experience that lingers in the best possible way. Every promise was kept, every expectation exceeded. You can feel the soul and craftsmanship in every single detail. An absolute ten out of ten—five shining stars!"
+    "Absolutely phenomenal! {businessName} in {locationName} exceeded every expectation. The staff was incredibly warm, and the quality is simply unmatched. A true 5-star gem!",
+    "Hands down the best experience I've had in {locationName}! {businessName} sets the gold standard for customer service. Everything was flawless.",
+    "I cannot recommend {businessName} enough! From the moment we walked in, we were treated like royalty. The attention to detail here is extraordinary.",
+    "Perfection! {businessName} delivered an unforgettable experience. The atmosphere is beautiful, the staff is brilliant, and the quality is out of this world.",
+    "If I could give 10 stars, I would! {businessName} is absolutely incredible. They genuinely care about their customers and it shows in every single interaction.",
+    "A masterclass in hospitality. {businessName} combines stunning aesthetics with world-class service. Do yourself a favor and visit them immediately!",
+    "Wow! I am completely blown away by {businessName}. The professionalism, the speed, the quality—everything was 100% perfect. Highly, highly recommend!",
+    "Easily the best place in {locationName}. The team at {businessName} goes so far above and beyond. You leave feeling completely energized and happy.",
+    "An absolute delight! My visit to {businessName} was flawless. It is so rare to find a business that operates with this level of passion and excellence.",
+    "Incredible service! {businessName} made my day. The staff was so welcoming and knowledgeable. I will be recommending this place to everyone I know.",
+    "Just stunning. {businessName} offers a premium, luxurious experience that makes you feel incredibly valued as a customer. Absolutely worth every penny.",
+    "Flawless execution! {businessName} in {locationName} is brilliant. They anticipated our needs before we even asked. A shining example of a perfect business.",
+    "I am a customer for life! {businessName} delivered beyond my wildest dreams. The team is so sweet, and the quality is absolutely breathtaking.",
+    "Five stars all the way! {businessName} is a total game-changer. The cleanliness, the vibe, the unmatched customer care—it is pure perfection.",
+    "This place is magic. {businessName} operates with such artistic integrity and warmth. You can feel the soul of the team in everything they do.",
+    "A triumph of customer service! {businessName} was an absolute joy to visit. Everything was handled with precision, care, and genuine smiles.",
+    "The absolute best of the best! {businessName} stands head and shoulders above the competition in {locationName}. An unforgettable 5-star experience.",
+    "I'm still smiling from my visit! {businessName} has such a wonderful team and the quality is simply transcendent. Bravo to the entire staff!",
+    "Outstanding in every conceivable way. {businessName} delivered one of the most delightful experiences I've had all year. Absolute perfection.",
+    "A true crown jewel of {locationName}! Every promise was kept, every expectation was shattered. {businessName} is a magnificent 10/10!"
   ]
 };
 
-/**
- * Format and interpolate review templates with real business names
- */
 export function formatReviewMessage(template, businessName = 'MadVerse', locationName = 'Experience Studio') {
   if (!template) return '';
   return template
@@ -94,18 +118,12 @@ export function formatReviewMessage(template, businessName = 'MadVerse', locatio
     .replace(/\{locationName\}/g, locationName || 'Experience Studio');
 }
 
-/**
- * Retrieve all reviews for a specific star rating (1 to 5)
- */
 export function getReviewsForRating(rating = 5, businessName = 'MadVerse', locationName = 'Experience Studio') {
   const safeRating = Math.max(1, Math.min(5, Number(rating) || 5));
   const templates = REVIEW_MESSAGES_BY_RATING[safeRating] || REVIEW_MESSAGES_BY_RATING[5];
   return templates.map(tmpl => formatReviewMessage(tmpl, businessName, locationName));
 }
 
-/**
- * Retrieve a single review for a rating by index
- */
 export function getReviewByIndex(rating = 5, index = 0, businessName = 'MadVerse', locationName = 'Experience Studio') {
   const list = getReviewsForRating(rating, businessName, locationName);
   const safeIndex = ((index % list.length) + list.length) % list.length;
