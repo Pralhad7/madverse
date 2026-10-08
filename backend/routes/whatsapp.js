@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -32,7 +32,7 @@ function getTemplates({ customerName, businessName, locationName, serviceName, s
 }
 
 // PUBLIC/AUTH: Send/Generate WhatsApp Review Invitation
-router.post('/invite', (req, res) => {
+router.post('/invite', async (req, res) => {
     try {
         const { 
             locationId, 
@@ -53,22 +53,22 @@ router.post('/invite', (req, res) => {
         // Fetch location details
         let loc = null;
         if (locationId) {
-            loc = getDB().prepare(`
+            loc = (await db.query(`
                 SELECT l.*, b.name as business_name, b.category 
                 FROM locations l 
                 JOIN businesses b ON l.business_id = b.id 
-                WHERE l.id = ?
-            `).get(locationId);
+                WHERE l.id = $1
+            `, [locationId])).rows[0];
         }
 
         if (!loc) {
-            loc = getDB().prepare(`
+            loc = (await db.query(`
                 SELECT l.*, b.name as business_name, b.category 
                 FROM locations l 
                 JOIN businesses b ON l.business_id = b.id 
                 ORDER BY l.updated_at DESC, l.created_at DESC 
                 LIMIT 1
-            `).get();
+            `, [])).rows[0];
         }
 
         const businessName = loc?.business_name || 'Trident Net Holidays';
@@ -97,12 +97,12 @@ router.post('/invite', (req, res) => {
 
         // Record in whatsapp_invites table
         try {
-            getDB().prepare(`
+            await db.query(`
                 INSERT INTO whatsapp_invites (location_id, customer_name, customer_phone, service_name, staff_name, status)
-                VALUES (?, ?, ?, ?, ?, 'sent')
-            `).run(targetLocId, customerName, cleanPhone, serviceName, staffName);
+                VALUES ($1, $2, $3, $4, $5, 'sent')
+            `, [targetLocId, customerName, cleanPhone, serviceName, staffName]);
 
-            getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
+            (await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)')
               .run(targetLocId, 'whatsapp_invite_created', 'en');
         } catch (dbErr) {
             console.error('DB save error for whatsapp invite:', dbErr.message);
@@ -123,16 +123,16 @@ router.post('/invite', (req, res) => {
 });
 
 // AUTH: Get recent invites for dashboard
-router.get('/invites', auth, (req, res) => {
+router.get('/invites', auth, async (req, res) => {
     try {
         const invites = getDB().prepare(`
             SELECT w.*, l.name as location_name 
             FROM whatsapp_invites w
             JOIN locations l ON w.location_id = l.id
-            WHERE l.business_id = ?
+            WHERE l.business_id = $4
             ORDER BY w.created_at DESC
             LIMIT 50
-        `).all(req.user.business_id);
+        `, [req.user.business_id])).rows;
 
         res.json(invites);
     } catch (error) {

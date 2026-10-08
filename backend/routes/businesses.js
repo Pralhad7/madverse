@@ -2,7 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -50,7 +50,7 @@ router.post('/', registerLimiter, async (req, res) => {
         const cleanName = String(name).trim().slice(0, 100);
         const cleanCategory = category ? String(category).trim().slice(0, 50) : 'retail';
         
-        const checkEmail = getDB().prepare('SELECT id FROM admin_users WHERE email = ?').get(trimmedEmail);
+        const checkEmail = (await db.query('SELECT id FROM admin_users WHERE email = $1', [trimmedEmail])).rows[0];
         if (checkEmail) {
             return res.status(400).json({ error: 'Email already exists' });
         }
@@ -60,10 +60,12 @@ router.post('/', registerLimiter, async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        getDB().transaction(() => {
-            getDB().prepare('INSERT INTO businesses (id, name, category) VALUES (?, ?, ?)').run(businessId, cleanName, cleanCategory);
-            getDB().prepare('INSERT INTO admin_users (id, business_id, email, password_hash) VALUES (?, ?, ?, ?)').run(userId, businessId, trimmedEmail, passwordHash);
-        })();
+        await db.query('BEGIN');
+        try {
+            await db.query('INSERT INTO businesses (id, name, category) VALUES ($1, $2, $3)', [businessId, cleanName, cleanCategory]);
+            await db.query('INSERT INTO admin_users (id, business_id, email, password_hash) VALUES ($1, $2, $3, $4)', [userId, businessId, trimmedEmail, passwordHash]);
+        await db.query('COMMIT');
+        } catch (e) { await db.query('ROLLBACK'); throw e; }
 
         const token = jwt.sign({ business_id: businessId, user_id: userId, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
         
@@ -82,7 +84,7 @@ router.post('/login', loginLimiter, async (req, res) => {
         }
 
         const trimmedEmail = String(email).trim().toLowerCase();
-        const user = getDB().prepare('SELECT id, business_id, password_hash FROM admin_users WHERE email = ?').get(trimmedEmail);
+        const user = (await db.query('SELECT id, business_id, password_hash FROM admin_users WHERE email = $1', [trimmedEmail])).rows[0];
         
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
             return res.status(401).json({ error: 'Invalid email or password' });
@@ -96,9 +98,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 });
 
-router.get('/me', auth, (req, res) => {
+router.get('/me', auth, async (req, res) => {
     try {
-        const business = getDB().prepare('SELECT id, name, category, logo_url, primary_color, secondary_color, language, tone, created_at FROM businesses WHERE id = ?').get(req.user.business_id);
+        const business = (await db.query('SELECT id, name, category, logo_url, primary_color, secondary_color, language, tone, created_at FROM businesses WHERE id = $1', [req.user.business_id])).rows[0];
         if (!business) return res.status(404).json({ error: 'Business not found' });
         res.json(business);
     } catch (error) {
@@ -106,7 +108,7 @@ router.get('/me', auth, (req, res) => {
     }
 });
 
-router.put('/me', auth, (req, res) => {
+router.put('/me', auth, async (req, res) => {
     try {
         const { name, category, logo_url, primary_color, secondary_color, language, tone } = req.body;
         
@@ -126,18 +128,18 @@ router.put('/me', auth, (req, res) => {
         const cleanTone = tone ? String(tone).trim().slice(0, 50) : undefined;
         const cleanLang = language ? String(language).trim().slice(0, 10) : undefined;
         
-        getDB().prepare(`
+        await db.query(`
             UPDATE businesses 
-            SET name = COALESCE(?, name),
-                category = COALESCE(?, category),
-                logo_url = COALESCE(?, logo_url),
-                primary_color = COALESCE(?, primary_color),
-                secondary_color = COALESCE(?, secondary_color),
-                language = COALESCE(?, language),
-                tone = COALESCE(?, tone),
+            SET name = COALESCE($1, name),
+                category = COALESCE($2, category),
+                logo_url = COALESCE($3, logo_url),
+                primary_color = COALESCE($4, primary_color),
+                secondary_color = COALESCE($5, secondary_color),
+                language = COALESCE($6, language),
+                tone = COALESCE($7, tone),
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `).run(cleanName, cleanCategory, logo_url, primary_color, secondary_color, cleanLang, cleanTone, req.user.business_id);
+            WHERE id = $8
+        `, [cleanName, cleanCategory, logo_url, primary_color, secondary_color, cleanLang, cleanTone, req.user.business_id]);
         
         res.json({ success: true });
     } catch (error) {
@@ -145,9 +147,9 @@ router.put('/me', auth, (req, res) => {
     }
 });
 
-router.delete('/me', auth, (req, res) => {
+router.delete('/me', auth, async (req, res) => {
     try {
-        getDB().prepare('DELETE FROM businesses WHERE id = ?').run(req.user.business_id);
+        await db.query('DELETE FROM businesses WHERE id = $1', [req.user.business_id]);
         res.json({ success: true, message: 'Business deleted' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete business' });

@@ -1,11 +1,11 @@
 const express = require('express');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
 
 // PUBLIC: Customer sends private note to business owner
-router.post('/private', (req, res) => {
+router.post('/private', async (req, res) => {
     try {
         const { locationId, rating = 3, customerName = '', customerContact = '', message } = req.body;
 
@@ -20,23 +20,23 @@ router.post('/private', (req, res) => {
 
         // Resolve active location ID
         let targetLocationId = locationId ? String(locationId).trim() : '';
-        const locCheck = getDB().prepare('SELECT id FROM locations WHERE id = ?').get(targetLocationId);
+        const locCheck = (await db.query('SELECT id FROM locations WHERE id = $1', [targetLocationId])).rows[0];
         if (!locCheck) {
-            const fallbackLoc = getDB().prepare('SELECT id FROM locations ORDER BY updated_at DESC, created_at DESC LIMIT 1').get();
+            const fallbackLoc = (await db.query('SELECT id FROM locations ORDER BY updated_at DESC, created_at DESC LIMIT 1', [])).rows[0];
             if (fallbackLoc) {
                 targetLocationId = fallbackLoc.id;
             }
         }
 
         if (targetLocationId) {
-            getDB().prepare(`
+            await db.query(`
                 INSERT INTO private_feedbacks (location_id, rating, customer_name, customer_contact, message)
-                VALUES (?, ?, ?, ?, ?)
-            `).run(targetLocationId, safeRating, safeName, safeContact, safeMessage);
+                VALUES ($1, $2, $3, $4, $5)
+            `, [targetLocationId, safeRating, safeName, safeContact, safeMessage]);
 
             // Log event
             try {
-                getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
+                (await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)')
                   .run(targetLocationId, 'manager_feedback_submitted', 'en');
             } catch (_) {}
         }
@@ -49,16 +49,16 @@ router.post('/private', (req, res) => {
 });
 
 // AUTH: Business owner views private feedbacks
-router.get('/private', auth, (req, res) => {
+router.get('/private', auth, async (req, res) => {
     try {
         const feedbacks = getDB().prepare(`
             SELECT f.*, l.name as location_name
             FROM private_feedbacks f
             JOIN locations l ON f.location_id = l.id
-            WHERE l.business_id = ?
+            WHERE l.business_id = $4
             ORDER BY f.created_at DESC
             LIMIT 50
-        `).all(req.user.business_id);
+        `, [req.user.business_id])).rows;
 
         res.json(feedbacks);
     } catch (error) {
@@ -68,17 +68,17 @@ router.get('/private', auth, (req, res) => {
 });
 
 // AUTH: Update private feedback status (e.g., resolved, contacted)
-router.patch('/private/:id/status', auth, (req, res) => {
+router.patch('/private/:id/status', auth, async (req, res) => {
     try {
         const { status = 'resolved' } = req.body;
         const validStatuses = ['pending', 'contacted', 'resolved'];
         const safeStatus = validStatuses.includes(status) ? status : 'resolved';
         
-        getDB().prepare(`
+        await db.query(`
             UPDATE private_feedbacks 
-            SET status = ? 
-            WHERE id = ?
-        `).run(safeStatus, req.params.id);
+            SET status = $1 
+            WHERE id = $2
+        `, [safeStatus, req.params.id]);
 
         res.json({ success: true, status: safeStatus });
     } catch (error) {

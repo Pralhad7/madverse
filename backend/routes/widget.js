@@ -1,26 +1,26 @@
 const express = require('express');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 
 const router = express.Router();
 
 // PUBLIC: Return JSON data for website widget
-router.get('/data/:locationId', (req, res) => {
+router.get('/data/:locationId', async (req, res) => {
     try {
         const { locationId } = req.params;
-        let loc = getDB().prepare(`
+        let loc = (await db.query(`
             SELECT l.*, b.name as business_name, b.logo_url 
             FROM locations l 
             JOIN businesses b ON l.business_id = b.id 
-            WHERE l.id = ?
-        `).get(locationId);
+            WHERE l.id = $1
+        `, [locationId])).rows[0];
 
         if (!loc) {
-            loc = getDB().prepare(`
+            loc = (await db.query(`
                 SELECT l.*, b.name as business_name, b.logo_url 
                 FROM locations l 
                 JOIN businesses b ON l.business_id = b.id 
                 ORDER BY l.updated_at DESC LIMIT 1
-            `).get();
+            `, [])).rows[0];
         }
 
         const data = {
@@ -41,14 +41,15 @@ router.get('/data/:locationId', (req, res) => {
 });
 
 // PUBLIC: Embeddable JavaScript SDK snippet
-router.get('/embed.js', (req, res) => {
+router.get('/embed.js', async (req, res) => {
     res.setHeader('Content-Type', 'application/javascript');
     res.send(`
 (function() {
   var scriptTag = document.currentScript || (function() {
     var scripts = document.getElementsByTagName('script');
     return scripts[scripts.length - 1];
-  })();
+  await db.query('COMMIT');
+        } catch (e) { await db.query('ROLLBACK'); throw e; }
   var locId = scriptTag.getAttribute('data-location-id') || 'ef9b1224-1b18-4137-825d-0693d8dcd72f';
   var position = scriptTag.getAttribute('data-position') || 'bottom-right';
 
@@ -106,7 +107,8 @@ router.get('/embed.js', (req, res) => {
     .catch(function(err) {
       console.warn('Madverse widget load error:', err);
     });
-})();
+await db.query('COMMIT');
+        } catch (e) { await db.query('ROLLBACK'); throw e; }
     `);
 });
 

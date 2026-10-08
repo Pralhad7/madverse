@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const auth = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 
@@ -31,7 +31,7 @@ const EVENT_ALIASES = {
     'direct_google_click': 'direct_google_fallback_clicked'
 };
 
-router.post('/event', limiter, (req, res) => {
+router.post('/event', limiter, async (req, res) => {
     try {
         const { locationId, eventType: rawEventType, language = 'en' } = req.body;
         
@@ -48,9 +48,9 @@ router.post('/event', limiter, (req, res) => {
         const safeLanguage = typeof language === 'string' && /^[a-zA-Z\-]{2,10}$/.test(language) ? language : 'en';
 
         let targetLocationId = String(locationId).trim();
-        const locCheck = getDB().prepare('SELECT id FROM locations WHERE id = ?').get(targetLocationId);
+        const locCheck = (await db.query('SELECT id FROM locations WHERE id = $1', [targetLocationId])).rows[0];
         if (!locCheck) {
-            const fallbackLoc = getDB().prepare('SELECT id FROM locations ORDER BY updated_at DESC, created_at DESC LIMIT 1').get();
+            const fallbackLoc = (await db.query('SELECT id FROM locations ORDER BY updated_at DESC, created_at DESC LIMIT 1', [])).rows[0];
             if (fallbackLoc) {
                 targetLocationId = fallbackLoc.id;
             } else {
@@ -58,7 +58,7 @@ router.post('/event', limiter, (req, res) => {
             }
         }
 
-        getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
+        (await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)')
           .run(targetLocationId, eventType, safeLanguage);
           
         res.status(201).json({ success: true, eventType });
@@ -67,17 +67,17 @@ router.post('/event', limiter, (req, res) => {
     }
 });
 
-router.get('/summary/:locationId', auth, (req, res) => {
+router.get('/summary/:locationId', auth, async (req, res) => {
     try {
-        const locationCheck = getDB().prepare('SELECT id FROM locations WHERE id = ? AND business_id = ?').get(req.params.locationId, req.user.business_id);
+        const locationCheck = getDB().prepare('SELECT id FROM locations WHERE id = $4 AND business_id = $5', [req.params.locationId, req.user.business_id])).rows[0];
         if (!locationCheck) return res.status(403).json({ error: 'Unauthorized' });
 
-        const stats = getDB().prepare(`
+        const stats = (await db.query(`
             SELECT event_type, COUNT(*) as count 
             FROM analytics_events 
-            WHERE location_id = ? 
+            WHERE location_id = $1 
             GROUP BY event_type
-        `).all(req.params.locationId);
+        `, [req.params.locationId])).rows;
 
         const result = {
             qr_scanned: 0,
@@ -103,15 +103,15 @@ router.get('/summary/:locationId', auth, (req, res) => {
     }
 });
 
-router.get('/summary', auth, (req, res) => {
+router.get('/summary', auth, async (req, res) => {
     try {
-        const stats = getDB().prepare(`
+        const stats = (await db.query(`
             SELECT a.event_type, COUNT(*) as count 
             FROM analytics_events a
             JOIN locations l ON a.location_id = l.id
-            WHERE l.business_id = ?
+            WHERE l.business_id = $1
             GROUP BY a.event_type
-        `).all(req.user.business_id);
+        `, [req.user.business_id])).rows;
 
         const result = {
             qr_scanned: 0,

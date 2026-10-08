@@ -1,31 +1,31 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
 
 // PUBLIC endpoint - no auth required (used by customer review page)
-router.get('/:id/public', (req, res) => {
+router.get('/:id/public', async (req, res) => {
     try {
         const reqId = req.params.id ? String(req.params.id).trim() : '';
         let data = null;
 
         // 1. Try exact match by ID if valid
         if (reqId && reqId !== 'undefined' && reqId !== 'null' && reqId !== 'default') {
-            data = getDB().prepare(`
+            data = (await db.query(`
                 SELECT l.id as locationId, l.name as locationName, l.address, l.google_review_link,
                        b.name as businessName, b.category, b.logo_url, b.primary_color, b.secondary_color, b.language, b.tone
                 FROM locations l
                 LEFT JOIN businesses b ON l.business_id = b.id
-                WHERE l.id = ? AND l.is_active = 1
-            `).get(reqId);
+                WHERE l.id = $1 AND l.is_active = 1
+            `, [reqId])).rows[0];
         }
 
         // 2. Resilient fallback: If requested ID not found (e.g. pre-redeploy QR or mistyped),
         // gracefully fall back to the most active/latest location in DB
         if (!data) {
-            data = getDB().prepare(`
+            data = (await db.query(`
                 SELECT l.id as locationId, l.name as locationName, l.address, l.google_review_link,
                        b.name as businessName, b.category, b.logo_url, b.primary_color, b.secondary_color, b.language, b.tone
                 FROM locations l
@@ -33,18 +33,18 @@ router.get('/:id/public', (req, res) => {
                 WHERE l.is_active = 1
                 ORDER BY l.updated_at DESC, l.created_at DESC
                 LIMIT 1
-            `).get();
+            `, [])).rows[0];
         }
 
         // 3. Fallback to any location in DB
         if (!data) {
-            data = getDB().prepare(`
+            data = (await db.query(`
                 SELECT l.id as locationId, l.name as locationName, l.address, l.google_review_link,
                        b.name as businessName, b.category, b.logo_url, b.primary_color, b.secondary_color, b.language, b.tone
                 FROM locations l
                 LEFT JOIN businesses b ON l.business_id = b.id
                 LIMIT 1
-            `).get();
+            `, [])).rows[0];
         }
 
         // 4. Safe fallback if DB has 0 records
@@ -67,7 +67,7 @@ router.get('/:id/public', (req, res) => {
         // Get category prompts
         let prompts = [];
         try {
-            const categoryPrompts = getDB().prepare('SELECT prompts_json FROM category_prompts WHERE category = ?').get(data.category);
+            const categoryPrompts = (await db.query('SELECT prompts_json FROM category_prompts WHERE category = $1', [data.category])).rows[0];
             prompts = categoryPrompts ? JSON.parse(categoryPrompts.prompts_json) : [];
         } catch (_) {}
 
@@ -134,7 +134,7 @@ function isValidHttpUrl(string) {
 // All routes below require auth
 router.use(auth);
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { name, address, google_review_link } = req.body;
         if (!name || !google_review_link) {
@@ -155,10 +155,10 @@ router.post('/', (req, res) => {
         const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
         const qrCodeUrl = `${baseUrl}/review/${locationId}`;
         
-        getDB().prepare(`
+        await db.query(`
             INSERT INTO locations (id, business_id, name, address, google_review_link, qr_code_url)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).run(locationId, req.user.business_id, cleanName, cleanAddress, trimmedLink, qrCodeUrl);
+            VALUES ($1, $2, $3, $4, $5, $6)
+        `, [locationId, req.user.business_id, cleanName, cleanAddress, trimmedLink, qrCodeUrl]);
         
         res.status(201).json({ id: locationId, qr_code_url: qrCodeUrl });
     } catch (error) {
@@ -166,18 +166,18 @@ router.post('/', (req, res) => {
     }
 });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
     try {
-        const locations = getDB().prepare('SELECT * FROM locations WHERE business_id = ?').all(req.user.business_id);
+        const locations = (await db.query('SELECT * FROM locations WHERE business_id = $1', [req.user.business_id])).rows;
         res.json(locations);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch locations' });
     }
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
-        const location = getDB().prepare('SELECT * FROM locations WHERE id = ? AND business_id = ?').get(req.params.id, req.user.business_id);
+        const location = (await db.query('SELECT * FROM locations WHERE id = $1 AND business_id = $2', [req.params.id, req.user.business_id])).rows[0];
         if (!location) return res.status(404).json({ error: 'Location not found' });
         res.json(location);
     } catch (error) {
@@ -185,7 +185,7 @@ router.get('/:id', (req, res) => {
     }
 });
 
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
     try {
         const { name, address, google_review_link } = req.body;
         
@@ -200,14 +200,14 @@ router.put('/:id', (req, res) => {
         const cleanName = name ? String(name).trim().slice(0, 150) : undefined;
         const cleanAddress = address ? String(address).trim().slice(0, 250) : undefined;
 
-        const result = getDB().prepare(`
+        const result = await db.query(`
             UPDATE locations 
-            SET name = COALESCE(?, name),
-                address = COALESCE(?, address),
-                google_review_link = COALESCE(?, google_review_link),
+            SET name = COALESCE($1, name),
+                address = COALESCE($2, address),
+                google_review_link = COALESCE($3, google_review_link),
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND business_id = ?
-        `).run(cleanName, cleanAddress, trimmedLink, req.params.id, req.user.business_id);
+            WHERE id = $4 AND business_id = $5
+        `, [cleanName, cleanAddress, trimmedLink, req.params.id, req.user.business_id]);
         
         if (result.changes === 0) return res.status(404).json({ error: 'Location not found' });
         res.json({ success: true });
@@ -216,13 +216,13 @@ router.put('/:id', (req, res) => {
     }
 });
 
-router.put('/:id/toggle', (req, res) => {
+router.put('/:id/toggle', async (req, res) => {
     try {
-        const result = getDB().prepare(`
+        const result = await db.query(`
             UPDATE locations 
             SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND business_id = ?
-        `).run(req.params.id, req.user.business_id);
+            WHERE id = $1 AND business_id = $2
+        `, [req.params.id, req.user.business_id]);
         
         if (result.changes === 0) return res.status(404).json({ error: 'Location not found' });
         res.json({ success: true });
@@ -231,9 +231,9 @@ router.put('/:id/toggle', (req, res) => {
     }
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
     try {
-        const result = getDB().prepare('DELETE FROM locations WHERE id = ? AND business_id = ?').run(req.params.id, req.user.business_id);
+        const result = await db.query('DELETE FROM locations WHERE id = $1 AND business_id = $2', [req.params.id, req.user.business_id]);
         if (result.changes === 0) return res.status(404).json({ error: 'Location not found' });
         res.json({ success: true });
     } catch (error) {

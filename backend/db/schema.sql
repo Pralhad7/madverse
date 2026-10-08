@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS businesses (
     secondary_color TEXT DEFAULT '#ffffff',
     language TEXT DEFAULT 'en',
     tone TEXT DEFAULT 'friendly',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS locations (
@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS locations (
     name TEXT NOT NULL,
     address TEXT,
     google_review_link TEXT NOT NULL,
-    is_active BOOLEAN DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
     qr_code_url TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
 
@@ -30,34 +30,34 @@ CREATE TABLE IF NOT EXISTS admin_users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT DEFAULT 'admin',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS analytics_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     location_id TEXT NOT NULL,
     event_type TEXT NOT NULL,
     language TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(location_id) REFERENCES locations(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS category_prompts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     category TEXT NOT NULL,
     prompts_json TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS private_feedbacks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     location_id TEXT NOT NULL,
     rating INTEGER NOT NULL,
     customer_name TEXT,
     customer_contact TEXT,
     message TEXT NOT NULL,
     status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(location_id) REFERENCES locations(id) ON DELETE CASCADE
 );
 
@@ -66,19 +66,19 @@ CREATE TABLE IF NOT EXISTS staff_members (
     business_id TEXT NOT NULL,
     name TEXT NOT NULL,
     role TEXT DEFAULT 'Staff',
-    is_active BOOLEAN DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS whatsapp_invites (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     location_id TEXT NOT NULL,
     customer_name TEXT,
     customer_phone TEXT NOT NULL,
     service_name TEXT,
     staff_name TEXT,
     status TEXT DEFAULT 'sent',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(location_id) REFERENCES locations(id) ON DELETE CASCADE
 );

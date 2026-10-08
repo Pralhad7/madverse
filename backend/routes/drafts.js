@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const { generateDrafts } = require('../services/ai');
 
 const router = express.Router();
@@ -41,34 +41,34 @@ router.post('/generate', draftLimiter, async (req, res) => {
         // 1. Try finding requested location by ID
         let data = null;
         if (reqId && reqId !== 'undefined' && reqId !== 'null' && reqId !== 'default') {
-            data = getDB().prepare(`
+            data = (await db.query(`
                 SELECT l.id as locationId, l.name as locationName, l.google_review_link, b.name as businessName, b.category, b.tone 
                 FROM locations l 
                 LEFT JOIN businesses b ON l.business_id = b.id 
-                WHERE l.id = ? AND l.is_active = 1
-            `).get(reqId);
+                WHERE l.id = $1 AND l.is_active = 1
+            `, [reqId])).rows[0];
         }
 
         // 2. Resilient fallback: active location in DB
         if (!data) {
-            data = getDB().prepare(`
+            data = (await db.query(`
                 SELECT l.id as locationId, l.name as locationName, l.google_review_link, b.name as businessName, b.category, b.tone 
                 FROM locations l 
                 LEFT JOIN businesses b ON l.business_id = b.id 
                 WHERE l.is_active = 1
                 ORDER BY l.updated_at DESC, l.created_at DESC
                 LIMIT 1
-            `).get();
+            `, [])).rows[0];
         }
 
         // 3. Any location in DB
         if (!data) {
-            data = getDB().prepare(`
+            data = (await db.query(`
                 SELECT l.id as locationId, l.name as locationName, l.google_review_link, b.name as businessName, b.category, b.tone 
                 FROM locations l 
                 LEFT JOIN businesses b ON l.business_id = b.id 
                 LIMIT 1
-            `).get();
+            `, [])).rows[0];
         }
 
         // 4. Safe fallback if DB is empty
@@ -96,7 +96,7 @@ router.post('/generate', draftLimiter, async (req, res) => {
 
         // Log analytics safely without throwing on foreign key constraint
         try {
-            const locExists = getDB().prepare('SELECT id FROM locations WHERE id = ?').get(data.locationId);
+            const locExists = (await db.query('SELECT id FROM locations WHERE id = $1', [data.locationId])).rows[0];
             if (locExists) {
                 getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
                   .run(data.locationId, 'draft_generated', safeLanguage);

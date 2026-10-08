@@ -59,8 +59,8 @@ async function start() {
     }
 
     // Health check endpoint for cloud load balancers & monitoring
-    app.get('/health', (req, res) => res.json({ status: 'ok', app: 'MadVerse', timestamp: new Date().toISOString() }));
-    app.get('/api/health', (req, res) => res.json({ status: 'ok', app: 'MadVerse', timestamp: new Date().toISOString() }));
+    app.get('/health', async (req, res) => res.json({ status: 'ok', app: 'MadVerse', timestamp: new Date().toISOString() }));
+    app.get('/api/health', async (req, res) => res.json({ status: 'ok', app: 'MadVerse', timestamp: new Date().toISOString() }));
 
     // Routes (loaded after DB init)
     app.use('/api/businesses', require('./routes/businesses'));
@@ -72,7 +72,7 @@ async function start() {
     app.use('/api/whatsapp', require('./routes/whatsapp'));
     app.use('/api/staff', require('./routes/staff'));
     app.use('/api/widget', require('./routes/widget'));
-    app.get('/widget.js', (req, res) => res.redirect('/api/widget/embed.js'));
+    app.get('/widget.js', async (req, res) => res.redirect('/api/widget/embed.js'));
 
     // Serve static frontend bundle
     const possibleDistPaths = [
@@ -87,12 +87,12 @@ async function start() {
     if (frontendDist) {
         console.log(`Serving frontend static files from: ${frontendDist}`);
         app.use(express.static(frontendDist));
-        app.get('*', (req, res) => {
+        app.get('*', async (req, res) => {
             res.sendFile(path.join(frontendDist, 'index.html'));
         });
     } else {
         console.warn('Frontend dist not found, serving API only mode.');
-        app.get('/', (req, res) => {
+        app.get('/', async (req, res) => {
             res.json({ app: 'MadVerse API', status: 'online', note: 'Frontend dist is compiling or missing.' });
         });
     }
@@ -116,16 +116,6 @@ start().catch(err => {
 // Graceful shutdown
 const shutdown = () => {
     console.log('\nShutting down gracefully...');
-    try {
-        const { getDB } = require('./db/init');
-        const db = getDB();
-        if (db && typeof db.save === 'function') {
-            db.save();
-            console.log('Database saved successfully before exit.');
-        }
-    } catch (e) {
-        console.error('Error saving database on exit:', e);
-    }
     process.exit(0);
 };
 

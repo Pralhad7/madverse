@@ -1,27 +1,27 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
 
 // PUBLIC: Get active staff for review screen
-router.get('/public/:locationId', (req, res) => {
+router.get('/public/:locationId', async (req, res) => {
     try {
         const { locationId } = req.params;
         let staff = [];
 
         // Check if location exists
-        const loc = getDB().prepare('SELECT business_id FROM locations WHERE id = ?').get(locationId);
+        const loc = (await db.query('SELECT business_id FROM locations WHERE id = $1', [locationId])).rows[0];
         const bizId = loc ? loc.business_id : null;
 
         if (bizId) {
-            staff = getDB().prepare(`
+            staff = (await db.query(`
                 SELECT id, name, role 
                 FROM staff_members 
-                WHERE business_id = ? AND is_active = 1
+                WHERE business_id = $1 AND is_active = 1
                 ORDER BY created_at ASC
-            `).all(bizId);
+            `, [bizId])).rows;
         }
 
         // Fallback default staff if none found
@@ -44,13 +44,13 @@ router.get('/public/:locationId', (req, res) => {
 });
 
 // AUTH: Get staff for business admin
-router.get('/', auth, (req, res) => {
+router.get('/', auth, async (req, res) => {
     try {
-        const staff = getDB().prepare(`
+        const staff = (await db.query(`
             SELECT * FROM staff_members 
-            WHERE business_id = ? 
+            WHERE business_id = $1 
             ORDER BY is_active DESC, created_at ASC
-        `).all(req.user.business_id);
+        `, [req.user.business_id])).rows;
         res.json(staff);
     } catch (error) {
         console.error('Fetch staff error:', error);
@@ -59,7 +59,7 @@ router.get('/', auth, (req, res) => {
 });
 
 // AUTH: Add new staff member
-router.post('/', auth, (req, res) => {
+router.post('/', auth, async (req, res) => {
     try {
         const { name, role = 'Staff' } = req.body;
         if (!name || !name.trim()) {
@@ -67,12 +67,12 @@ router.post('/', auth, (req, res) => {
         }
 
         const id = uuidv4();
-        getDB().prepare(`
+        await db.query(`
             INSERT INTO staff_members (id, business_id, name, role, is_active)
-            VALUES (?, ?, ?, ?, 1)
-        `).run(id, req.user.business_id, name.trim(), role.trim());
+            VALUES ($1, $2, $3, $4, 1)
+        `, [id, req.user.business_id, name.trim(]), role.trim());
 
-        const newStaff = getDB().prepare('SELECT * FROM staff_members WHERE id = ?').get(id);
+        const newStaff = (await db.query('SELECT * FROM staff_members WHERE id = $1', [id])).rows[0];
         res.status(201).json(newStaff);
     } catch (error) {
         console.error('Add staff error:', error);
@@ -81,12 +81,12 @@ router.post('/', auth, (req, res) => {
 });
 
 // AUTH: Delete staff member
-router.delete('/:id', auth, (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
     try {
-        getDB().prepare(`
+        await db.query(`
             DELETE FROM staff_members 
-            WHERE id = ? AND business_id = ?
-        `).run(req.params.id, req.user.business_id);
+            WHERE id = $1 AND business_id = $2
+        `, [req.params.id, req.user.business_id]);
         res.json({ success: true });
     } catch (error) {
         console.error('Delete staff error:', error);
@@ -95,20 +95,20 @@ router.delete('/:id', auth, (req, res) => {
 });
 
 // AUTH: Staff Performance Leaderboard
-router.get('/leaderboard', auth, (req, res) => {
+router.get('/leaderboard', auth, async (req, res) => {
     try {
-        const staff = getDB().prepare(`
+        const staff = (await db.query(`
             SELECT id, name, role FROM staff_members 
-            WHERE business_id = ? AND is_active = 1
-        `).all(req.user.business_id);
+            WHERE business_id = $1 AND is_active = 1
+        `, [req.user.business_id])).rows;
 
         // Fetch WhatsApp invites count per staff
-        const invitesPerStaff = getDB().prepare(`
+        const invitesPerStaff = (await db.query(`
             SELECT staff_name, COUNT(*) as count 
             FROM whatsapp_invites 
             WHERE staff_name IS NOT NULL AND staff_name != ''
             GROUP BY staff_name
-        `).all();
+        `, [])).rows;
 
         const inviteMap = {};
         invitesPerStaff.forEach(i => { inviteMap[i.staff_name] = i.count; });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { getDB } = require('../db/init');
+const { db } = require('../db/init');
 const qrService = require('../services/qr');
 
 const router = express.Router();
@@ -19,30 +19,30 @@ function resolveLocation(locationId) {
     const reqId = locationId ? String(locationId).trim() : '';
     let location = null;
     if (reqId && reqId !== 'undefined' && reqId !== 'null' && reqId !== 'default') {
-        location = getDB().prepare(`
+        location = (await db.query(`
             SELECT l.id, l.name, l.qr_code_url, b.primary_color 
             FROM locations l 
             LEFT JOIN businesses b ON l.business_id = b.id 
-            WHERE l.id = ?
-        `).get(reqId);
+            WHERE l.id = $1
+        `, [reqId])).rows[0];
     }
     if (!location) {
-        location = getDB().prepare(`
+        location = (await db.query(`
             SELECT l.id, l.name, l.qr_code_url, b.primary_color 
             FROM locations l 
             LEFT JOIN businesses b ON l.business_id = b.id 
             WHERE l.is_active = 1
             ORDER BY l.updated_at DESC, l.created_at DESC
             LIMIT 1
-        `).get();
+        `, [])).rows[0];
     }
     if (!location) {
-        location = getDB().prepare(`
+        location = (await db.query(`
             SELECT l.id, l.name, l.qr_code_url, b.primary_color 
             FROM locations l 
             LEFT JOIN businesses b ON l.business_id = b.id 
             LIMIT 1
-        `).get();
+        `, [])).rows[0];
     }
     if (!location) {
         location = {
