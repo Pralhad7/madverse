@@ -21,7 +21,7 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json({ limit: '50kb' })); // Mitigate Large JSON payload DoS
 
-// Global rate limiting for API routes (300 requests per 15 minutes per IP)
+// Rate limiting for Admin/Auth routes (300 requests per 15 minutes)
 const rateLimit = require('express-rate-limit');
 const globalApiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -30,7 +30,24 @@ const globalApiLimiter = rateLimit({
     legacyHeaders: false,
     message: { error: 'Too many requests from this IP, please try again after 15 minutes.' }
 });
-app.use('/api', globalApiLimiter);
+
+// Relaxed rate limiting for Public endpoints (e.g. store WiFi with many customers scanning)
+const publicApiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 2000, // higher limit for shared IPs
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+// Apply limiters conditionally to avoid duplicate limiting
+app.use('/api/locations/:id/public', publicApiLimiter);
+app.use('/api/qr', publicApiLimiter);
+app.use('/api', (req, res, next) => {
+    if (req.path.includes('/public') || req.path.startsWith('/qr')) {
+        return next();
+    }
+    return globalApiLimiter(req, res, next);
+});
 
 // Start server after DB is ready
 async function start() {
@@ -95,3 +112,22 @@ start().catch(err => {
     console.error('Failed to start server:', err);
     process.exit(1);
 });
+
+// Graceful shutdown
+const shutdown = () => {
+    console.log('\nShutting down gracefully...');
+    try {
+        const { getDB } = require('./db/init');
+        const db = getDB();
+        if (db && typeof db.save === 'function') {
+            db.save();
+            console.log('Database saved successfully before exit.');
+        }
+    } catch (e) {
+        console.error('Error saving database on exit:', e);
+    }
+    process.exit(0);
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

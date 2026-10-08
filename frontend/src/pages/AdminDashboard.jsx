@@ -465,6 +465,16 @@ const Locations = () => {
               onChange={e => setFormData({...formData, google_review_link: e.target.value})} 
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
+            <div className="flex items-center justify-end mt-1.5 mb-2">
+              <a 
+                href="https://business.google.com/locations" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <ExternalLink size={10} /> Find my direct link on Google Business
+              </a>
+            </div>
 
             {/* Step-by-step Guide */}
             <div className="mt-2 p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-slate-600 space-y-1">
@@ -561,6 +571,16 @@ const Locations = () => {
               onChange={e => setEditFormData({...editFormData, google_review_link: e.target.value})} 
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
             />
+            <div className="flex items-center justify-end mt-1.5 mb-2">
+              <a 
+                href="https://business.google.com/locations" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                <ExternalLink size={10} /> Find my direct link on Google Business
+              </a>
+            </div>
 
             {/* Step-by-step Guide */}
             <div className="mt-2 p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-slate-600 space-y-1">

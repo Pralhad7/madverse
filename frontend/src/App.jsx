@@ -2,10 +2,12 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import CustomerReview from './pages/CustomerReview';
-import AdminLogin from './pages/AdminLogin';
-import BusinessSetup from './pages/BusinessSetup';
-import AdminLayout from './pages/AdminLayout';
-import AdminDashboard from './pages/AdminDashboard';
+
+// Lazy load admin pages to keep the customer bundle size small
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+const BusinessSetup = lazy(() => import('./pages/BusinessSetup'));
+const AdminLayout = lazy(() => import('./pages/AdminLayout'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 function App() {
   return (

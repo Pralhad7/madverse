@@ -111,6 +111,16 @@ export default function PhysicalMerchStudio({
         ))}
       </div>
 
+      {window.location.hostname === 'localhost' && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2 text-[11px] text-amber-800 shadow-sm mx-auto w-full max-w-xl">
+          <span className="font-bold shrink-0 mt-0.5">⚠️ Local Dev Warning:</span>
+          <span className="leading-relaxed">
+            This QR points to <strong>localhost</strong>, so it won't work if scanned by your phone right now. 
+            When deployed (or if you access this dashboard via your computer's IP like <code className="bg-amber-100 px-1 rounded">192.168.x.x</code>), the generated QR will work perfectly on mobile.
+          </span>
+        </div>
+      )}
+
       {/* 3D Perspective Stage: Clean, Minimalist Studio */}
       <div 
         className="relative bg-stone-50/70 rounded-3xl p-8 sm:p-12 flex flex-col items-center justify-center min-h-[480px] overflow-hidden border border-stone-200/90 perspective-1000 shadow-2xs"
