@@ -36,8 +36,8 @@ router.post('/private', async (req, res) => {
 
             // Log event
             try {
-                (await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)')
-                  .run(targetLocationId, 'manager_feedback_submitted', 'en');
+                await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)', 
+                  [targetLocationId, 'manager_feedback_submitted', 'en']);
             } catch (_) {}
         }
 
@@ -51,7 +51,7 @@ router.post('/private', async (req, res) => {
 // AUTH: Business owner views private feedbacks
 router.get('/private', auth, async (req, res) => {
     try {
-        const feedbacks = getDB().prepare(`
+        const feedbacks = (await db.query(`
             SELECT f.*, l.name as location_name
             FROM private_feedbacks f
             JOIN locations l ON f.location_id = l.id

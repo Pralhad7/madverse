@@ -58,8 +58,7 @@ router.post('/event', limiter, async (req, res) => {
             }
         }
 
-        (await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)')
-          .run(targetLocationId, eventType, safeLanguage);
+        await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)', [targetLocationId, eventType, safeLanguage]);
           
         res.status(201).json({ success: true, eventType });
     } catch (error) {
@@ -69,7 +68,7 @@ router.post('/event', limiter, async (req, res) => {
 
 router.get('/summary/:locationId', auth, async (req, res) => {
     try {
-        const locationCheck = getDB().prepare('SELECT id FROM locations WHERE id = $4 AND business_id = $5', [req.params.locationId, req.user.business_id])).rows[0];
+        const locationCheck = (await db.query('SELECT id FROM locations WHERE id = $1 AND business_id = $2', [req.params.locationId, req.user.business_id])).rows[0];
         if (!locationCheck) return res.status(403).json({ error: 'Unauthorized' });
 
         const stats = (await db.query(`

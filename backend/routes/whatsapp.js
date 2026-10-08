@@ -102,8 +102,8 @@ router.post('/invite', async (req, res) => {
                 VALUES ($1, $2, $3, $4, $5, 'sent')
             `, [targetLocId, customerName, cleanPhone, serviceName, staffName]);
 
-            (await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)')
-              .run(targetLocId, 'whatsapp_invite_created', 'en');
+            await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)', 
+              [targetLocId, 'whatsapp_invite_created', 'en']);
         } catch (dbErr) {
             console.error('DB save error for whatsapp invite:', dbErr.message);
         }
@@ -125,7 +125,7 @@ router.post('/invite', async (req, res) => {
 // AUTH: Get recent invites for dashboard
 router.get('/invites', auth, async (req, res) => {
     try {
-        const invites = getDB().prepare(`
+        const invites = (await db.query(`
             SELECT w.*, l.name as location_name 
             FROM whatsapp_invites w
             JOIN locations l ON w.location_id = l.id

@@ -70,7 +70,7 @@ router.post('/', auth, async (req, res) => {
         await db.query(`
             INSERT INTO staff_members (id, business_id, name, role, is_active)
             VALUES ($1, $2, $3, $4, 1)
-        `, [id, req.user.business_id, name.trim(]), role.trim());
+        `, [id, req.user.business_id, name.trim(), role.trim()]);
 
         const newStaff = (await db.query('SELECT * FROM staff_members WHERE id = $1', [id])).rows[0];
         res.status(201).json(newStaff);

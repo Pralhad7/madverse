@@ -98,8 +98,8 @@ router.post('/generate', draftLimiter, async (req, res) => {
         try {
             const locExists = (await db.query('SELECT id FROM locations WHERE id = $1', [data.locationId])).rows[0];
             if (locExists) {
-                getDB().prepare('INSERT INTO analytics_events (location_id, event_type, language) VALUES (?, ?, ?)')
-                  .run(data.locationId, 'draft_generated', safeLanguage);
+                await db.query('INSERT INTO analytics_events (location_id, event_type, language) VALUES ($1, $2, $3)', 
+                  [data.locationId, 'draft_generated', safeLanguage]);
             }
         } catch (_) {}
 

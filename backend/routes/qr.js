@@ -15,7 +15,7 @@ function getTargetUrl(req, locationId) {
         : `${protocol}://${host}/review/${locationId}`;
 }
 
-function resolveLocation(locationId) {
+async function resolveLocation(locationId) {
     const reqId = locationId ? String(locationId).trim() : '';
     let location = null;
     if (reqId && reqId !== 'undefined' && reqId !== 'null' && reqId !== 'default') {
@@ -57,7 +57,7 @@ function resolveLocation(locationId) {
 // PUBLIC endpoint: returns raw PNG image for <img src="..." /> tags
 router.get('/image/:locationId', async (req, res) => {
     try {
-        const location = resolveLocation(req.params.locationId);
+        const location = await resolveLocation(req.params.locationId);
         
         const targetUrl = getTargetUrl(req, location.id);
         const safeColor = location.primary_color && /^#[0-9a-fA-F]{3,6}$/.test(location.primary_color)
@@ -77,7 +77,7 @@ router.get('/image/:locationId', async (req, res) => {
 // Dual-mode endpoint: returns JSON { dataUrl } if JSON requested, or raw image/png if requested by <img>
 router.get('/generate/:locationId', async (req, res) => {
     try {
-        const location = resolveLocation(req.params.locationId);
+        const location = await resolveLocation(req.params.locationId);
         
         const targetUrl = getTargetUrl(req, location.id);
         const safeColor = location.primary_color && /^#[0-9a-fA-F]{3,6}$/.test(location.primary_color)
@@ -104,7 +104,7 @@ router.get('/generate/:locationId', async (req, res) => {
 // Download endpoint: returns downloadable attachment with custom filename
 router.get('/download/:locationId', async (req, res) => {
     try {
-        const location = resolveLocation(req.params.locationId);
+        const location = await resolveLocation(req.params.locationId);
         
         const targetUrl = getTargetUrl(req, location.id);
         const safeColor = location.primary_color && /^#[0-9a-fA-F]{3,6}$/.test(location.primary_color)
